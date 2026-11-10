@@ -160,7 +160,11 @@ export default function App() {
     <section className="editor"><div className="editor-heading"><div><div className="eyebrow">PROJECT / {project.number} <span>—</span> {project.tag}</div><h1>{project.title}</h1><p>{project.subtitle}</p></div><div className="editor-tools"><span className="resolution">1920 × 1080 <i/> 16:9</span><button className="icon-button" title="Fit canvas"><Maximize2 size={16}/></button><button className="frame-export-button" onClick={exportFrame} disabled={exporting}><Download size={14}/> PNG</button><button className="export-button" onClick={handleExportMp4} disabled={exporting || !ready}>{exporting ? <LoaderCircle size={15} className="spin"/> : <Film size={15}/>} {exporting ? 'Rendering ' + Math.round(exportProgress * 100) + '%' : 'Export MP4'}</button></div></div>
 
       <section className="ai-prompt-panel">
-        <div className="ai-panel-heading"><div><span className="ai-kicker"><Sparkles size={13}/> AI DIRECTOR</span><h2>Describe the scene you want</h2><p>LM Studio turns your brief into a structured, editable 3D composition.</p></div><span className="ai-status">{lmStatus}</span></div>
+        <div className="director-mode-switch" role="group" aria-label="Director mode">
+          <button className={directorMode === 'procedural' ? 'selected' : ''} onClick={() => { setDirectorMode('procedural'); setAiError(''); setAiNotice(''); }}>PROCEDURAL DIRECTOR <small>OFFLINE</small></button>
+          <button className={directorMode === 'ai' ? 'selected' : ''} onClick={() => { setDirectorMode('ai'); setAiError(''); setAiNotice(''); }}>AI DIRECTOR <small>LM STUDIO</small></button>
+        </div>
+        <div className="ai-panel-heading"><div><span className="ai-kicker"><Sparkles size={13}/> {directorMode === 'procedural' ? 'PROCEDURAL DIRECTOR' : 'AI DIRECTOR'}</span><h2>Describe the scene you want</h2><p>{directorMode === 'procedural' ? 'Builds an editable 3D composition locally. No model or network connection required.' : 'LM Studio turns your brief into a structured, editable 3D composition.'}</p></div><span className="ai-status">{directorMode === 'procedural' ? 'OFFLINE · READY' : lmStatus}</span></div>
         <textarea className="ai-prompt-input" value={prompt} maxLength={2000} onChange={event => setPrompt(event.target.value)} placeholder="Describe objects, motion, camera, lighting, style and final title…" disabled={generating}/>
         {directorMode === 'ai' ? <>
           <div className="ai-connection-row">
