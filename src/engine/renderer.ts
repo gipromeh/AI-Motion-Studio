@@ -557,6 +557,9 @@ export class MotionRenderer {
     } else if (this.active === 'genesis') {
       this.camera.position.set(Math.sin(t * 0.18) * 0.22, Math.sin(t * 0.31) * 0.1, 9.2 - 1.05 * smoothstep(9.4, 13, t));
       this.camera.lookAt(0, 0, 0);
+    } else if (this.active === 'titanic') {
+      this.camera.position.set(Math.sin(t * 0.12) * 0.16, Math.sin(t * 0.17) * 0.06, 9.4 - 0.45 * smoothstep(8, 15, t));
+      this.camera.lookAt(0, 0, 0);
     } else {
       this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
       this.camera.position.y = this.active === 'product' ? Math.sin(t * 0.3) * 0.1 : 0;
