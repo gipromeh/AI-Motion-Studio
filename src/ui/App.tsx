@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Activity, AudioLines, Box, Check, ChevronDown, CircleHelp, Download, Film,
   FolderPlus, Layers3, LoaderCircle, Maximize2, Pause, Play, Plus, RotateCcw,
-  Save, Settings2, Sparkles, SlidersHorizontal, Volume2, X
+  Settings2, Sparkles, SlidersHorizontal, Volume2, X
 } from 'lucide-react';
 import { MotionRenderer } from '../engine/renderer';
 import { MotionAudio } from '../engine/audio';
