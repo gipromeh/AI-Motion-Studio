@@ -201,7 +201,7 @@ export class MotionRenderer {
         return;
       }
       this.titanicAssets = assets;
-      for (const object of [assets.ocean, assets.bow, assets.stern, assets.iceberg]) {
+      for (const object of [assets.ocean, assets.bow, assets.stern, assets.iceberg, assets.effects]) {
         object.userData.assetManaged = true;
         this.add(object);
       }
@@ -428,7 +428,7 @@ export class MotionRenderer {
         const layer = object.userData.layer as string;
         const timing: Record<string, [number, number]> = { overline: [0.45, 2.1], main: [2.1, 5.1], subtitle: [4.2, 6.8], date: [6.2, 8.2] };
         const [start, end] = timing[layer] ?? [0, 1];
-        const reveal = smoothstep(start, end, t) * (1 - smoothstep(16.1, 18, t));
+        const reveal = smoothstep(start, end, t) * (1 - smoothstep(6.9, 8.05, t));
         (mesh.material as THREE.MeshBasicMaterial).opacity = reveal;
         mesh.scale.setScalar(layer === 'main' ? 0.82 + 0.18 * easeOutCubic((t - start) / (end - start)) : 0.96 + reveal * 0.04);
         mesh.position.x = layer === 'main' ? (1 - reveal) * -0.32 : 0;
@@ -546,9 +546,11 @@ export class MotionRenderer {
       this.titanicAssets?.update(t);
       const shots = [
         { time: 0, position: new THREE.Vector3(0.1, 2.25, 10.8), target: new THREE.Vector3(0, 0.42, 0) },
-        { time: 5.2, position: new THREE.Vector3(2.35, 1.45, 6.3), target: new THREE.Vector3(2.25, 0.34, 0.12) },
-        { time: 8.0, position: new THREE.Vector3(1.55, 1.1, 5.25), target: new THREE.Vector3(2.55, 0.3, 0.12) },
-        { time: 11.5, position: new THREE.Vector3(0.2, 2.1, 10.2), target: new THREE.Vector3(0, 0.28, 0) },
+        { time: 4.9, position: new THREE.Vector3(2.35, 1.45, 6.3), target: new THREE.Vector3(2.25, 0.34, 0.12) },
+        { time: 7.35, position: new THREE.Vector3(1.35, 0.82, 4.25), target: new THREE.Vector3(2.62, 0.34, 0.05) },
+        { time: 8.25, position: new THREE.Vector3(1.7, 0.95, 4.65), target: new THREE.Vector3(2.65, 0.42, 0.05) },
+        { time: 9.7, position: new THREE.Vector3(-1.2, 1.55, 6.8), target: new THREE.Vector3(0.25, 0.22, 0) },
+        { time: 12.8, position: new THREE.Vector3(0.2, 2.1, 10.2), target: new THREE.Vector3(0, 0.28, 0) },
         { time: 18, position: new THREE.Vector3(-0.2, 2.5, 11.4), target: new THREE.Vector3(0, 0.1, 0) }
       ];
       let index = 0;
@@ -558,6 +560,11 @@ export class MotionRenderer {
       const progress = smoothstep(a.time, b.time, t);
       this.camera.position.lerpVectors(a.position, b.position, progress);
       const target = a.target.clone().lerp(b.target, progress);
+      const shakeAge = Math.max(0, t - 8.08);
+      const shake = Math.exp(-shakeAge * 5.2) * (1 - smoothstep(7.95, 8.08, t));
+      this.camera.position.x += Math.sin(shakeAge * 48) * 0.12 * shake;
+      this.camera.position.y += Math.cos(shakeAge * 39) * 0.075 * shake;
+      target.x += Math.sin(shakeAge * 42) * 0.035 * shake;
       this.camera.lookAt(target);
     } else {
       this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
