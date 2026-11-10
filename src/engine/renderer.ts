@@ -356,7 +356,6 @@ export class MotionRenderer {
     for (const object of this.objects) {
       const kind = object.userData.kind;
       if (kind === 'generated-object') {
-      if (kind === 'generated-object') {
         const animations = object.userData.animations as SceneAnimation[];
         for (const animation of animations) {
           const raw = clamp((t - animation.start) / (animation.end - animation.start));
@@ -376,7 +375,6 @@ export class MotionRenderer {
             if (vector && ['x', 'y', 'z'].includes(axis)) vector[axis as 'x' | 'y' | 'z'] = value;
           }
         }
-      }
       }
       if (kind === 'genesis-core') {
         const reveal = clamp(spring(t - 0.28, 150, 23));
