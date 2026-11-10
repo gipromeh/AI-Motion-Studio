@@ -1,4 +1,4 @@
-export type SceneId = 'type' | 'product' | 'science' | 'genesis' | 'generated';
+export type SceneId = 'type' | 'product' | 'science' | 'genesis' | 'titanic' | 'generated';
 export type SceneDefinition = { id: SceneId; title: string; category: string; duration: number; description: string };
 export interface SeekableScene { readonly definition: SceneDefinition; seek(timeSeconds: number): void; dispose(): void; }
 export const clamp = (value: number, min = 0, max = 1): number => Math.min(max, Math.max(min, value));
