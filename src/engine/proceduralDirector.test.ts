@@ -15,7 +15,7 @@ describe('procedural director', () => {
     const ids = scene.objects.map(object => object.id);
     expect(scene.duration).toBe(15);
     expect(scene.background).toBe('#080d18');
-    expect(scene.title).toBe('SAMOGONSCHIKI');
+    expect(scene.title).toBe('САМОГОНЩИКИ');
     expect(ids).toContain('bottle-body');
     expect(ids).toContain('bottle-neck');
     expect(ids).toContain('bottle-stopper');
