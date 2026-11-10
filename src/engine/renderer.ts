@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SceneId } from './scene';
+import type { GeneratedSceneSpec, GeneratedObject, SceneAnimation } from './generatedScene';
 import { clamp, easeOutCubic, seededRandom, smoothstep } from './scene';
 import { spring } from './spring';
 import { evaluateTrack, type Keyframe } from './keyframes';
@@ -17,6 +18,7 @@ export class MotionRenderer {
   private titleText = 'FUTURE';
   private titleColor = '#f1eee7';
   private titleScaleKeys: Keyframe[] = [{ id: 'title-start', time: 0, value: 0.82 }, { id: 'title-full', time: 1.2, value: 1 }];
+  private generatedSpec?: GeneratedSceneSpec;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -51,6 +53,7 @@ export class MotionRenderer {
     if (id === 'product') this.buildProductScene();
     if (id === 'science') this.buildScienceScene();
     if (id === 'genesis') this.buildGenesisScene();
+    if (id === 'generated' && this.generatedSpec) this.buildGeneratedScene(this.generatedSpec);
     this.seek(0);
   }
 
@@ -273,12 +276,108 @@ export class MotionRenderer {
     this.add(glow);
   }
 
+
+  setGeneratedScene(spec: GeneratedSceneSpec): void {
+    this.generatedSpec = spec;
+    this.active = 'generated';
+    for (const object of this.objects) {
+      this.scene.remove(object);
+      this.disposeObject(object);
+    }
+    this.objects.length = 0;
+    this.buildGeneratedScene(spec);
+    this.seek(0);
+  }
+
+  private buildGeneratedScene(spec: GeneratedSceneSpec): void {
+    for (const definition of spec.objects) {
+      let geometry: THREE.BufferGeometry;
+      if (definition.type === 'sphere') geometry = new THREE.SphereGeometry(1, 48, 32);
+      else if (definition.type === 'box') geometry = new THREE.BoxGeometry(1, 1, 1);
+      else if (definition.type === 'torus') geometry = new THREE.TorusGeometry(0.8, 0.16, 16, 96);
+      else if (definition.type === 'cylinder') geometry = new THREE.CylinderGeometry(0.75, 0.75, 1, 64);
+      else {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1400;
+        canvas.height = 360;
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.font = '800 190px Arial, Helvetica, sans-serif';
+          context.shadowColor = definition.emissive ?? definition.color;
+          context.shadowBlur = 24;
+          context.fillStyle = definition.color;
+          context.fillText(definition.text ?? '', 700, 180, 1320);
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        geometry = new THREE.PlaneGeometry(4.8, 1.24);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          opacity: definition.opacity ?? 1,
+          depthWrite: false,
+          toneMapped: false
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        this.configureGeneratedObject(mesh, definition);
+        this.add(mesh);
+        continue;
+      }
+      const material = new THREE.MeshStandardMaterial({
+        color: definition.color,
+        emissive: definition.emissive ?? '#000000',
+        metalness: definition.metalness ?? 0.35,
+        roughness: definition.roughness ?? 0.35,
+        transparent: (definition.opacity ?? 1) < 1,
+        opacity: definition.opacity ?? 1
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      this.configureGeneratedObject(mesh, definition);
+      this.add(mesh);
+    }
+  }
+
+  private configureGeneratedObject(object: THREE.Object3D, definition: GeneratedObject): void {
+    object.name = definition.id;
+    object.position.set(...definition.position);
+    object.rotation.set(...definition.rotation);
+    object.scale.set(...definition.scale);
+    object.userData.kind = 'generated-object';
+    object.userData.animations = definition.animations ?? [];
+  }
+
   seek(seconds: number): void {
     const t = clamp(seconds, 0, 30);
     this.currentTime = t;
-    this.scene.background = new THREE.Color(this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : '#050914');
+    this.scene.background = new THREE.Color(this.active === 'generated' && this.generatedSpec ? this.generatedSpec.background : this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : '#050914');
     for (const object of this.objects) {
       const kind = object.userData.kind;
+      if (kind === 'generated-object') {
+      if (kind === 'generated-object') {
+        const animations = object.userData.animations as SceneAnimation[];
+        for (const animation of animations) {
+          const raw = clamp((t - animation.start) / (animation.end - animation.start));
+          const progress = animation.easing === 'easeOut'
+            ? 1 - Math.pow(1 - raw, 3)
+            : animation.easing === 'easeInOut'
+              ? raw * raw * (3 - 2 * raw)
+              : raw;
+          const value = animation.from + (animation.to - animation.from) * progress;
+          if (animation.property === 'opacity') {
+            const material = (object as THREE.Mesh).material as THREE.Material & { opacity: number; transparent: boolean };
+            material.transparent = true;
+            material.opacity = value;
+          } else {
+            const [target, axis] = animation.property.split('.');
+            const vector = (object as unknown as Record<string, THREE.Vector3>)[target];
+            if (vector && ['x', 'y', 'z'].includes(axis)) vector[axis as 'x' | 'y' | 'z'] = value;
+          }
+        }
+      }
+      }
       if (kind === 'genesis-core') {
         const reveal = clamp(spring(t - 0.28, 150, 23));
         object.scale.setScalar(0.025 + reveal * 0.975);
@@ -347,7 +446,17 @@ export class MotionRenderer {
       if (kind === 'earth' || kind === 'cloud') { object.rotation.y = t * (kind === 'earth' ? 0.12 : 0.15); const reveal = smoothstep(0, 2.2, t); object.scale.setScalar(0.15 + reveal * 0.85); }
       if (kind === 'orbit') { object.rotation.z = t * 0.13; (object as THREE.Mesh).material && (((object as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.75 * smoothstep(0, 3, t)); }
     }
-    if (this.active === 'genesis') {
+    if (this.active === 'generated' && this.generatedSpec) {
+      const camera = this.generatedSpec.camera;
+      const progress = clamp((t - camera.start) / (camera.end - camera.start));
+      const eased = progress * progress * (3 - 2 * progress);
+      this.camera.position.set(
+        camera.from[0] + (camera.to[0] - camera.from[0]) * eased,
+        camera.from[1] + (camera.to[1] - camera.from[1]) * eased,
+        camera.from[2] + (camera.to[2] - camera.from[2]) * eased
+      );
+      this.camera.lookAt(0, 0, 0);
+    } else if (this.active === 'genesis') {
       this.camera.position.set(Math.sin(t * 0.18) * 0.22, Math.sin(t * 0.31) * 0.1, 9.2 - 1.05 * smoothstep(9.4, 13, t));
       this.camera.lookAt(0, 0, 0);
     } else {
