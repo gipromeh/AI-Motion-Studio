@@ -3,6 +3,7 @@ import { Activity, AudioLines, CircleHelp, Download, Film, Maximize2, Pause, Pla
 import { MotionRenderer } from '../engine/renderer';
 import { MotionAudio } from '../engine/audio';
 import type { SceneId } from '../engine/scene';
+import { upsertKeyframe, removeKeyframe, type Keyframe } from '../engine/keyframes';
 
 const projects: { id: SceneId; number: string; title: string; subtitle: string; duration: number; tag: string }[] = [
   { id: 'type', number: '01', title: 'FUTURE / Kinetic type', subtitle: 'Typographic system · kinetic composition', duration: 15, tag: '2D / 3D' },
@@ -19,12 +20,24 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [sound, setSound] = useState(false);
   const [ready, setReady] = useState(false);
+  const [titleText, setTitleText] = useState('FUTURE');
+  const [titleColor, setTitleColor] = useState('#f1eee7');
+  const [scaleKeys, setScaleKeys] = useState<Keyframe[]>([{ id: 'title-start', time: 0, value: 0.82 }, { id: 'title-full', time: 1.2, value: 1 }]);
+  const [selectedKey, setSelectedKey] = useState('title-full');
   const project = projects.find(p => p.id === active)!;
 
   useEffect(() => { if (!canvasRef.current) return; const renderer = new MotionRenderer(canvasRef.current); rendererRef.current = renderer; setReady(true); return () => { renderer.dispose(); rendererRef.current = undefined; audioRef.current.dispose(); }; }, []);
   useEffect(() => { rendererRef.current?.setScene(active); setTime(0); setPlaying(false); }, [active]);
+  useEffect(() => { rendererRef.current?.setTitleText(titleText, titleColor); }, [titleText, titleColor]);
+  useEffect(() => { rendererRef.current?.setTitleScaleKeys(scaleKeys); }, [scaleKeys]);
   useEffect(() => { if (!playing) return; let frame = 0; let last = performance.now(); let current = time; const tick = (now: number) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; current += dt; if (current >= project.duration) { current = project.duration; setPlaying(false); } rendererRef.current?.seek(current); setTime(current); if (current < project.duration) frame = requestAnimationFrame(tick); }; frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame); }, [playing, active, project.duration]);
   const seek = (value: number) => { const next = Math.max(0, Math.min(project.duration, value)); setTime(next); rendererRef.current?.seek(next); };
+  const addScaleKey = () => {
+    const key: Keyframe = { id: crypto.randomUUID(), time: Number(time.toFixed(2)), value: 1 };
+    setScaleKeys(current => upsertKeyframe(current, key));
+    setSelectedKey(key.id);
+  };
+  const updateSelectedKey = (patch: Partial<Keyframe>) => setScaleKeys(current => current.map(key => key.id === selectedKey ? { ...key, ...patch } : key));
   const toggleSound = async () => { if (!sound) await audioRef.current.unlock(); setSound(!sound); audioRef.current.playCue(740, 0.16, 'triangle'); };
   const exportFrame = () => { const canvas = canvasRef.current; if (!canvas) return; const link = document.createElement('a'); link.download = `ai-motion-${active}-${time.toFixed(2)}s.png`; link.href = canvas.toDataURL('image/png'); link.click(); };
   const format = (n: number) => `${Math.floor(n / 60).toString().padStart(2, '0')}:${(n % 60).toFixed(2).padStart(5, '0')}`;
@@ -35,6 +48,22 @@ export default function App() {
     <section className="editor"><div className="editor-heading"><div><div className="eyebrow">PROJECT / {project.number} <span>—</span> {project.tag}</div><h1>{project.title}</h1><p>{project.subtitle}</p></div><div className="editor-tools"><span className="resolution">1920 × 1080 <i/> 16:9</span><button className="icon-button" title="Fit canvas"><Maximize2 size={16}/></button><button className="export-button" onClick={exportFrame}><Download size={15}/> Export frame</button></div></div>
       <div className="preview-stage"><div className="stage-meta"><span><span className="stage-dot"/> RENDER VIEWPORT</span><span>60 FPS TARGET <b>·</b> WEBGL 2.0</span></div><div className="canvas-wrap"><canvas ref={canvasRef} aria-label="Motion design preview"/><div className="canvas-overlay"><span>{project.number} / 03</span><span>AI MOTION STUDY</span></div>{!ready && <div className="loading">INITIALIZING RENDERER…</div>}</div><div className="stage-footer"><span>SCENE: {active.toUpperCase()}</span><span>TIME: {format(time)} / {format(project.duration)}</span><span>DETERMINISTIC SEEK</span></div></div>
       <div className="timeline-panel"><div className="timeline-top"><div className="timeline-label"><Film size={15}/> TIMELINE <span className="timeline-sub">/ MASTER COMPOSITION</span></div><div className="timeline-controls"><button className="icon-button" onClick={() => seek(0)} title="Restart">↺</button><button className="play-button" onClick={() => { if (time >= project.duration) seek(0); setPlaying(!playing); }} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={15} fill="currentColor"/> : <Play size={15} fill="currentColor"/>}</button><button className={`icon-button ${sound ? 'active' : ''}`} onClick={toggleSound} title="Sound"><Volume2 size={16}/></button><span className="timecode">{format(time)}</span></div></div><div className="ruler"><span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span><span>{format(project.duration)}</span></div><div className="track-area"><div className="track-name">SCENE 01 <small>MAIN LAYER</small></div><div className="track-lane"><div className="clip-block" style={{ width: '100%' }}><span>{project.title}</span><span className="clip-tag">SEEKABLE</span></div><input aria-label="Timeline position" type="range" min="0" max={project.duration} step="0.01" value={time} onChange={e => seek(Number(e.target.value))} className="scrubber"/><div className="playhead" style={{ left: `${(time / project.duration) * 100}%` }}/></div></div><div className="timeline-bottom"><span><AudioLines size={13}/> AUDIO BUS <small>PROCEDURAL SFX</small></span><span>{sound ? 'AUDIO UNLOCKED' : 'CLICK SOUND TO ENABLE'}</span></div></div>
+      {active === 'type' && <section className="properties-panel">
+        <div className="properties-heading"><span>TYPOGRAPHY</span><span>LIVE SCENE PARAMETERS</span></div>
+        <div className="property-controls">
+          <label>TEXT<input value={titleText} maxLength={40} onChange={e => setTitleText(e.target.value.toUpperCase())}/></label>
+          <label>COLOR<input type="color" value={titleColor} onChange={e => setTitleColor(e.target.value)}/></label>
+          <div className="keyframe-editor">
+            <div className="keyframe-head"><span>TRANSFORM / SCALE</span><button onClick={addScaleKey}>＋ Add keyframe at playhead</button></div>
+            <div className="keyframe-strip">{scaleKeys.map(key => <button key={key.id} className={selectedKey === key.id ? 'key-chip selected' : 'key-chip'} onClick={() => { setSelectedKey(key.id); seek(key.time); }}><i/> {key.time.toFixed(2)}s · {key.value.toFixed(2)}×</button>)}</div>
+            {(() => { const selected = scaleKeys.find(key => key.id === selectedKey); return selected ? <div className="key-edit">
+              <label>TIME (S)<input type="number" min="0" max={project.duration} step="0.01" value={selected.time} onChange={e => updateSelectedKey({ time: Number(e.target.value) })}/></label>
+              <label>SCALE<input type="number" min="0.1" max="3" step="0.01" value={selected.value} onChange={e => updateSelectedKey({ value: Number(e.target.value) })}/></label>
+              <button className="delete-key" disabled={scaleKeys.length <= 1} onClick={() => { setScaleKeys(current => removeKeyframe(current, selected.id)); setSelectedKey(scaleKeys.find(key => key.id !== selected.id)?.id ?? ''); }}>Delete key</button>
+            </div> : null; })()}
+          </div>
+        </div>
+      </section>}
       <div className="bottom-status"><span><i className="status-green"/> All changes saved</span><span>ENGINE <b>THREE.JS</b></span><span>FRAME <b>{Math.round(time * 60).toString().padStart(4, '0')}</b></span><span>COLOR <b>ACES FILMIC</b></span><span className="bottom-spacer"/><span>AI DIRECTOR <b>NOT CONNECTED</b></span></div>
     </section></section>
   </main>;
