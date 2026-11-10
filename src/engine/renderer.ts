@@ -561,7 +561,7 @@ export class MotionRenderer {
       this.camera.position.lerpVectors(a.position, b.position, progress);
       const target = a.target.clone().lerp(b.target, progress);
       const shakeAge = Math.max(0, t - 8.08);
-      const shake = Math.exp(-shakeAge * 5.2) * (1 - smoothstep(7.95, 8.08, t));
+      const shake = smoothstep(7.95, 8.08, t) * Math.exp(-shakeAge * 5.2);
       this.camera.position.x += Math.sin(shakeAge * 48) * 0.12 * shake;
       this.camera.position.y += Math.cos(shakeAge * 39) * 0.075 * shake;
       target.x += Math.sin(shakeAge * 42) * 0.035 * shake;
