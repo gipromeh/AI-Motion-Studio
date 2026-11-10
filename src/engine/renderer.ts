@@ -10,6 +10,7 @@ export class MotionRenderer {
   private readonly camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
   private readonly objects: THREE.Object3D[] = [];
   private active: SceneId = 'type';
+  private currentTime = 0;
   private titleCanvas?: HTMLCanvasElement;
   private titleTexture?: THREE.CanvasTexture;
   private titleText = 'FUTURE';
@@ -126,6 +127,7 @@ export class MotionRenderer {
 
   seek(seconds: number): void {
     const t = clamp(seconds, 0, 30);
+    this.currentTime = t;
     this.scene.background = new THREE.Color(this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : '#050914');
     for (const object of this.objects) {
       const kind = object.userData.kind;
@@ -164,7 +166,7 @@ export class MotionRenderer {
     ctx.fillStyle = this.titleColor; ctx.fillText(this.titleText, 800, 176, 1500);
     ctx.fillStyle = '#f47b55'; ctx.fillRect(180, 310, 1240, 9);
     this.titleTexture.needsUpdate = true;
-    this.seek(0);
+    this.seek(this.currentTime);
   }
 
   setTitleScaleKeys(keys: Keyframe[]): void { this.titleScaleKeys = [...keys]; }
