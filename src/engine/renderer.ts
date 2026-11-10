@@ -50,6 +50,7 @@ export class MotionRenderer {
     if (id === 'type') this.buildTypeScene();
     if (id === 'product') this.buildProductScene();
     if (id === 'science') this.buildScienceScene();
+    if (id === 'genesis') this.buildGenesisScene();
     this.seek(0);
   }
 
@@ -143,12 +144,191 @@ export class MotionRenderer {
     orbit.rotation.x = 1.15; orbit.userData.kind = 'orbit'; this.add(orbit);
   }
 
+
+  private buildGenesisScene(): void {
+    const core = new THREE.Group();
+    const nucleus = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(0.88, 2),
+      new THREE.MeshPhysicalMaterial({
+        color: '#102c50',
+        metalness: 0.72,
+        roughness: 0.16,
+        clearcoat: 1,
+        emissive: '#087da8',
+        emissiveIntensity: 1.15
+      })
+    );
+    core.add(nucleus);
+    const wire = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.12, 1),
+      new THREE.MeshBasicMaterial({ color: '#42e8ff', wireframe: true, transparent: true, opacity: 0.58 })
+    );
+    core.add(wire);
+    const inner = new THREE.Mesh(
+      new THREE.SphereGeometry(0.48, 48, 32),
+      new THREE.MeshBasicMaterial({ color: '#a5f7ff', transparent: true, opacity: 0.18 })
+    );
+    core.add(inner);
+    core.userData.kind = 'genesis-core';
+    this.add(core);
+
+    for (let i = 0; i < 3; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(1.48 + i * 0.28, i === 1 ? 0.012 : 0.022, 10, 180),
+        new THREE.MeshStandardMaterial({
+          color: i === 1 ? '#ff895f' : '#39dff5',
+          emissive: i === 1 ? '#8c2b18' : '#075b78',
+          emissiveIntensity: 1.2,
+          metalness: 0.7,
+          roughness: 0.24,
+          transparent: true,
+          opacity: 0.8
+        })
+      );
+      ring.rotation.set(0.55 + i * 0.42, 0.2 + i * 0.3, i * 0.65);
+      ring.userData.kind = 'genesis-ring';
+      ring.userData.index = i;
+      this.add(ring);
+    }
+
+    const random = seededRandom(20261110);
+    const particleCount = 1600;
+    const start = new Float32Array(particleCount * 3);
+    const targets = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      const u = random() * 2 - 1;
+      const angle = random() * Math.PI * 2;
+      const radius = 3.1 + random() * 4.2;
+      const planar = Math.sqrt(1 - u * u);
+      start[i * 3] = (random() - 0.5) * 0.08;
+      start[i * 3 + 1] = (random() - 0.5) * 0.08;
+      start[i * 3 + 2] = (random() - 0.5) * 0.08;
+      targets[i * 3] = Math.cos(angle) * planar * radius;
+      targets[i * 3 + 1] = u * radius * 0.68;
+      targets[i * 3 + 2] = Math.sin(angle) * planar * radius * 0.42 - 0.8;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    const positionAttribute = new THREE.BufferAttribute(start, 3);
+    positionAttribute.setUsage(THREE.DynamicDrawUsage);
+    particleGeometry.setAttribute('position', positionAttribute);
+    particleGeometry.setAttribute('targetPosition', new THREE.Float32BufferAttribute(targets, 3));
+    const particles = new THREE.Points(
+      particleGeometry,
+      new THREE.PointsMaterial({
+        color: '#8deeff',
+        size: 0.032,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.92,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    particles.userData.kind = 'genesis-particles';
+    this.add(particles);
+
+    const titleCanvas = document.createElement('canvas');
+    titleCanvas.width = 1800;
+    titleCanvas.height = 620;
+    const ctx = titleCanvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, titleCanvas.width, titleCanvas.height);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowBlur = 34;
+      ctx.shadowColor = '#16dfff';
+      ctx.font = '900 248px Arial, Helvetica, sans-serif';
+      const cyan = ctx.createLinearGradient(380, 0, 1420, 0);
+      cyan.addColorStop(0, '#b5fbff');
+      cyan.addColorStop(0.52, '#39dcf4');
+      cyan.addColorStop(1, '#f4a27c');
+      ctx.fillStyle = cyan;
+      ctx.fillText('NEON', 900, 230);
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = '#ff7652';
+      ctx.font = '900 206px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = '#f4f0eb';
+      ctx.fillText('GENESIS', 900, 470);
+      ctx.shadowBlur = 0;
+      const line = ctx.createLinearGradient(260, 0, 1540, 0);
+      line.addColorStop(0, 'rgba(57,220,244,0)');
+      line.addColorStop(0.5, 'rgba(57,220,244,0.95)');
+      line.addColorStop(1, 'rgba(255,118,82,0)');
+      ctx.fillStyle = line;
+      ctx.fillRect(280, 574, 1240, 4);
+    }
+    const titleTexture = new THREE.CanvasTexture(titleCanvas);
+    titleTexture.colorSpace = THREE.SRGBColorSpace;
+    const title = new THREE.Mesh(
+      new THREE.PlaneGeometry(7.3, 2.52),
+      new THREE.MeshBasicMaterial({ map: titleTexture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false })
+    );
+    title.position.set(0, -0.05, 1.42);
+    title.userData.kind = 'genesis-title';
+    this.add(title);
+
+    const glow = new THREE.PointLight(0x20dfff, 0, 22);
+    glow.position.set(0, 0, 2.2);
+    glow.userData.kind = 'genesis-light';
+    this.add(glow);
+  }
+
   seek(seconds: number): void {
     const t = clamp(seconds, 0, 30);
     this.currentTime = t;
-    this.scene.background = new THREE.Color(this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : '#050914');
+    this.scene.background = new THREE.Color(this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : '#050914');
     for (const object of this.objects) {
       const kind = object.userData.kind;
+      if (kind === 'genesis-core') {
+        const reveal = clamp(spring(t - 0.28, 150, 23));
+        object.scale.setScalar(0.025 + reveal * 0.975);
+        object.rotation.set(t * 0.12, t * 0.34, Math.sin(t * 0.3) * 0.08);
+      }
+      if (kind === 'genesis-ring') {
+        const index = Number(object.userData.index ?? 0);
+        const reveal = clamp(spring(t - 1.9 - index * 0.42, 125, 20));
+        object.scale.setScalar(0.08 + reveal * (0.92 + index * 0.08));
+        object.rotation.x = 0.55 + index * 0.42 + Math.sin(t * 0.2 + index) * 0.12;
+        object.rotation.y = t * (0.12 + index * 0.035);
+        object.rotation.z = t * (index % 2 === 0 ? 0.16 : -0.13);
+        const material = (object as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        material.opacity = 0.12 + reveal * 0.72;
+      }
+      if (kind === 'genesis-particles') {
+        const geometry = (object as THREE.Points).geometry;
+        const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+        const target = geometry.getAttribute('targetPosition') as THREE.BufferAttribute;
+        const burst = smoothstep(5.85, 8.25, t);
+        const angle = t * 0.16;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        for (let i = 0; i < target.count; i++) {
+          const tx = target.getX(i);
+          const ty = target.getY(i);
+          const tz = target.getZ(i);
+          const pulse = Math.sin(t * 0.9 + i * 0.17) * 0.018 * burst;
+          position.setXYZ(
+            i,
+            (tx * cos - tz * sin) * burst,
+            ty * burst + pulse,
+            (tx * sin + tz * cos) * burst
+          );
+        }
+        position.needsUpdate = true;
+        const material = (object as THREE.Points).material as THREE.PointsMaterial;
+        material.opacity = 0.18 + 0.82 * smoothstep(4.8, 7.4, t);
+      }
+      if (kind === 'genesis-title') {
+        const mesh = object as THREE.Mesh;
+        const reveal = smoothstep(8.15, 9.45, t);
+        const settle = 0.88 + 0.12 * easeOutCubic((t - 9.2) / 2.2);
+        mesh.scale.setScalar((0.72 + reveal * 0.28) * settle);
+        mesh.position.y = -0.05 + (1 - reveal) * -0.18;
+        (mesh.material as THREE.MeshBasicMaterial).opacity = reveal * (1 - 0.18 * smoothstep(14.35, 15, t));
+      }
+      if (kind === 'genesis-light') {
+        (object as THREE.PointLight).intensity = 5 + 42 * smoothstep(2.2, 4.5, t) - 18 * smoothstep(13.8, 15, t);
+      }
       if (kind === 'bars') {
         const group = object as THREE.Group;
         group.children.forEach((child, i) => { const reveal = spring(t - 0.35 - i * 0.09, 190, 25); child.scale.y = 0.05 + reveal * (1.1 + (i % 3) * 0.25); child.position.y = -0.7 + child.scale.y * 0.5; });
@@ -167,9 +347,15 @@ export class MotionRenderer {
       if (kind === 'earth' || kind === 'cloud') { object.rotation.y = t * (kind === 'earth' ? 0.12 : 0.15); const reveal = smoothstep(0, 2.2, t); object.scale.setScalar(0.15 + reveal * 0.85); }
       if (kind === 'orbit') { object.rotation.z = t * 0.13; (object as THREE.Mesh).material && (((object as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.75 * smoothstep(0, 3, t)); }
     }
-    this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
-    this.camera.position.y = this.active === 'product' ? Math.sin(t * 0.3) * 0.1 : 0;
-    this.camera.lookAt(0, 0, 0);
+    if (this.active === 'genesis') {
+      this.camera.position.set(Math.sin(t * 0.18) * 0.22, Math.sin(t * 0.31) * 0.1, 9.2 - 1.05 * smoothstep(9.4, 13, t));
+      this.camera.lookAt(0, 0, 0);
+    } else {
+      this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
+      this.camera.position.y = this.active === 'product' ? Math.sin(t * 0.3) * 0.1 : 0;
+      this.camera.position.z = 9;
+      this.camera.lookAt(0, 0, 0);
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
