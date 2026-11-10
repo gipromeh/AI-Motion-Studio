@@ -34,7 +34,7 @@ export default function App() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState('');
   const [directorMode, setDirectorMode] = useState<'procedural' | 'ai'>('procedural');
-  const [prompt, setPrompt] = useState('Create a 15-second cinematic product film. A precision glass lens floats in the center, three luminous metal rings orbit around it, the camera slowly pushes in, and the final title reads OPTICS 2030.');
+  const [prompt, setPrompt] = useState('Create a 15-second premium cinematic product advertisement for a whiskey brand called “САМОГОНЩИКИ”. A stylized amber whiskey bottle floats in a dark studio. Three elegant golden metallic rings orbit around the bottle. Warm amber highlights, dramatic shadows, slow camera push-in. During the final seconds, show the title “САМОГОНЩИКИ” and the tagline “Свой характер. Свои правила.” 16:9 luxury spirits advertising aesthetic.');
   const [lmBaseUrl, setLmBaseUrl] = useState('http://localhost:1234/v1');
   const [lmModel, setLmModel] = useState('');
   const [lmStatus, setLmStatus] = useState('NOT CONNECTED');
