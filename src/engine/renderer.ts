@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { SceneId } from './scene';
 import { clamp, easeOutCubic, seededRandom, smoothstep } from './scene';
 import { spring } from './spring';
+import { evaluateTrack, type Keyframe } from './keyframes';
 
 export class MotionRenderer {
   private readonly renderer: THREE.WebGLRenderer;
@@ -9,6 +10,11 @@ export class MotionRenderer {
   private readonly camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
   private readonly objects: THREE.Object3D[] = [];
   private active: SceneId = 'type';
+  private titleCanvas?: HTMLCanvasElement;
+  private titleTexture?: THREE.CanvasTexture;
+  private titleText = 'FUTURE';
+  private titleColor = '#f1eee7';
+  private titleScaleKeys: Keyframe[] = [{ id: 'title-start', time: 0, value: 0.82 }, { id: 'title-full', time: 1.2, value: 1 }];
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -67,16 +73,18 @@ export class MotionRenderer {
     bars.userData.kind = 'bars'; this.add(bars);
 
     const titleCanvas = document.createElement('canvas');
+    this.titleCanvas = titleCanvas;
     titleCanvas.width = 1600; titleCanvas.height = 360;
     const ctx = titleCanvas.getContext('2d');
     if (ctx) {
       ctx.clearRect(0, 0, titleCanvas.width, titleCanvas.height);
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.font = '900 250px Arial, Helvetica, sans-serif';
-      ctx.fillStyle = '#f1eee7'; ctx.fillText('FUTURE', 800, 176);
+      ctx.fillStyle = this.titleColor; ctx.fillText(this.titleText, 800, 176);
       ctx.fillStyle = '#f47b55'; ctx.fillRect(180, 310, 1240, 9);
     }
     const texture = new THREE.CanvasTexture(titleCanvas);
+    this.titleTexture = texture;
     texture.colorSpace = THREE.SRGBColorSpace;
     const title = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 1.485), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
     title.position.set(0, 0.55, 0.55); title.userData.kind = 'title'; this.add(title);
@@ -129,7 +137,8 @@ export class MotionRenderer {
       if (kind === 'title') {
         const mesh = object as THREE.Mesh;
         const reveal = spring(t - 0.25, 210, 25);
-        mesh.scale.set(0.82 + reveal * 0.18, 0.82 + reveal * 0.18, 1);
+        const animatedScale = evaluateTrack(t, this.titleScaleKeys, 1);
+        mesh.scale.set(animatedScale, animatedScale, 1);
         (mesh.material as THREE.MeshBasicMaterial).opacity = clamp(reveal);
         mesh.position.y = 0.3 + reveal * 0.25;
       }
@@ -144,7 +153,24 @@ export class MotionRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
+  setTitleText(text: string, color = this.titleColor): void {
+    this.titleText = text.slice(0, 40);
+    this.titleColor = color;
+    const ctx = this.titleCanvas?.getContext('2d');
+    if (!ctx || !this.titleTexture) return;
+    ctx.clearRect(0, 0, 1600, 360);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '900 250px Arial, Helvetica, sans-serif';
+    ctx.fillStyle = this.titleColor; ctx.fillText(this.titleText, 800, 176, 1500);
+    ctx.fillStyle = '#f47b55'; ctx.fillRect(180, 310, 1240, 9);
+    this.titleTexture.needsUpdate = true;
+    this.seek(0);
+  }
+
+  setTitleScaleKeys(keys: Keyframe[]): void { this.titleScaleKeys = [...keys]; }
+
   dispose(): void {
+    this.titleTexture?.dispose();
     window.removeEventListener('resize', this.resize);
     for (const object of this.objects) this.disposeObject(object);
     this.renderer.dispose();
