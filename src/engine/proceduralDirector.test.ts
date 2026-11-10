@@ -5,7 +5,7 @@ describe('procedural director', () => {
   it('creates a validated product composition without a model', () => {
     const scene = generateProceduralScene('Create a 15-second cinematic product film with a glass lens and three luminous rings. Camera push in. Final title reads OPTICS 2030.');
     expect(scene.duration).toBe(15);
-    expect(scene.title).toBe('OPTICS 2030.');
+    expect(scene.title).toBe('OPTICS 2030');
     expect(scene.objects.some(object => object.id === 'hero-object')).toBe(true);
     expect(scene.objects.filter(object => object.id.startsWith('orbit-'))).toHaveLength(3);
   });
