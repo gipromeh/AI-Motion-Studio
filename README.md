@@ -76,3 +76,8 @@ The TITANIC sequence uses a high-detail GLTF asset set instead of the original p
 Asset source: [KantLex / 3D-Titanic-Model](https://github.com/KantLex/3D-Titanic-Model), pinned to `661b58512d0bacd36ba2c5cd9dd060f0f105cb0d`. The source project is MIT licensed; its copyright and license terms remain applicable. The model files are loaded from jsDelivr at runtime, so the TITANIC scene requires an internet connection. Other scenes remain fully local.
 
 This is a cinematic real-time reconstruction, not a fluid/structural engineering simulation. The ship split is a deterministic mesh-clipping animation; it does not calculate physical hull fracture.
+
+
+### Titanic impact VFX
+
+The collision beat adds deterministic GPU point effects for ice/hull fragments, water spray and rising smoke, plus a short additive impact flash and point-light pulse. The camera receives a damped impact shake. The title layers clear before contact so they do not obscure the collision. The shot sequence moves from a wide establishing view to the iceberg approach, close impact, reverse angle and wide sinking view. Every effect is evaluated from absolute timeline time; seeking and frame-by-frame MP4 export reproduce the same positions without simulation state.

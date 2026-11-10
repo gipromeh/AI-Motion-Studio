@@ -28,6 +28,7 @@ export interface TitanicAssetScene {
   stern: THREE.Group;
   iceberg: THREE.Group;
   ocean: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial>;
+  effects: THREE.Group;
   update(time: number): void;
   dispose(): void;
 }
@@ -114,6 +115,83 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
   iceberg.userData.kind = 'titanic-asset-iceberg';
 
   const ocean = makeOcean();
+  const effects = new THREE.Group();
+  effects.name = 'titanic-impact-effects';
+
+  const particleCount = 220;
+  const sprayCount = 360;
+  const debrisOrigin = new Float32Array(particleCount * 3);
+  const debrisVelocity = new Float32Array(particleCount * 3);
+  const sprayOrigin = new Float32Array(sprayCount * 3);
+  const sprayVelocity = new Float32Array(sprayCount * 3);
+  const debrisPositions = new Float32Array(particleCount * 3);
+  const sprayPositions = new Float32Array(sprayCount * 3);
+  let seed = 1912;
+  const random = (): number => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let i = 0; i < particleCount; i++) {
+    const angle = random() * Math.PI * 2;
+    const speed = 0.28 + random() * 1.05;
+    debrisOrigin[i * 3] = 2.65 + (random() - 0.5) * 0.42;
+    debrisOrigin[i * 3 + 1] = 0.32 + random() * 0.25;
+    debrisOrigin[i * 3 + 2] = (random() - 0.5) * 0.7;
+    debrisVelocity[i * 3] = Math.cos(angle) * speed;
+    debrisVelocity[i * 3 + 1] = 0.35 + random() * 1.15;
+    debrisVelocity[i * 3 + 2] = Math.sin(angle) * speed * 0.72;
+  }
+  for (let i = 0; i < sprayCount; i++) {
+    const angle = random() * Math.PI * 2;
+    const speed = 0.35 + random() * 1.35;
+    sprayOrigin[i * 3] = 2.6 + (random() - 0.5) * 0.24;
+    sprayOrigin[i * 3 + 1] = 0.27;
+    sprayOrigin[i * 3 + 2] = (random() - 0.5) * 0.45;
+    sprayVelocity[i * 3] = Math.cos(angle) * speed;
+    sprayVelocity[i * 3 + 1] = 0.45 + random() * 1.55;
+    sprayVelocity[i * 3 + 2] = Math.sin(angle) * speed;
+  }
+
+  const debrisGeometry = new THREE.BufferGeometry();
+  const debrisAttribute = new THREE.BufferAttribute(debrisPositions, 3);
+  debrisAttribute.setUsage(THREE.DynamicDrawUsage);
+  debrisGeometry.setAttribute('position', debrisAttribute);
+  const debris = new THREE.Points(debrisGeometry, new THREE.PointsMaterial({
+    color: '#d8e6ec', size: 0.038, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false
+  }));
+  debris.name = 'ice-and-hull-debris';
+  effects.add(debris);
+
+  const sprayGeometry = new THREE.BufferGeometry();
+  const sprayAttribute = new THREE.BufferAttribute(sprayPositions, 3);
+  sprayAttribute.setUsage(THREE.DynamicDrawUsage);
+  sprayGeometry.setAttribute('position', sprayAttribute);
+  const spray = new THREE.Points(sprayGeometry, new THREE.PointsMaterial({
+    color: '#b9e4f3', size: 0.027, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false
+  }));
+  spray.name = 'impact-spray';
+  effects.add(spray);
+
+  const smokePositions = new Float32Array(90 * 3);
+  const smokeGeometry = new THREE.BufferGeometry();
+  const smokeAttribute = new THREE.BufferAttribute(smokePositions, 3);
+  smokeAttribute.setUsage(THREE.DynamicDrawUsage);
+  smokeGeometry.setAttribute('position', smokeAttribute);
+  const smoke = new THREE.Points(smokeGeometry, new THREE.PointsMaterial({
+    color: '#53616b', size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false
+  }));
+  smoke.name = 'impact-smoke';
+  effects.add(smoke);
+
+  const flash = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 20, 16),
+    new THREE.MeshBasicMaterial({ color: '#e5f8ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  flash.position.set(2.65, 0.43, 0);
+  effects.add(flash);
+  const flashLight = new THREE.PointLight(0x9edfff, 0, 5);
+  flashLight.position.copy(flash.position);
+  effects.add(flashLight);
 
   const update = (time: number): void => {
     const approach = THREE.MathUtils.smoothstep(time, 5.2, 8.1);
@@ -141,6 +219,53 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
     iceberg.position.z = -0.86 - 0.06 * approach;
     iceberg.rotation.y = Math.sin(time * 0.18) * 0.012;
 
+    const elapsed = Math.max(0, time - 8.05);
+    const impactEnvelope = THREE.MathUtils.smoothstep(time, 7.8, 8.12)
+      * (1 - THREE.MathUtils.smoothstep(time, 8.55, 9.15));
+    const debrisFade = THREE.MathUtils.smoothstep(time, 7.95, 8.25)
+      * (1 - THREE.MathUtils.smoothstep(time, 11.8, 13.2));
+    const sprayFade = THREE.MathUtils.smoothstep(time, 7.95, 8.18)
+      * (1 - THREE.MathUtils.smoothstep(time, 9.35, 10.2));
+    const smokeFade = THREE.MathUtils.smoothstep(time, 8.05, 8.7)
+      * (1 - THREE.MathUtils.smoothstep(time, 15.2, 18));
+    const gravity = 0.48;
+    for (let i = 0; i < particleCount; i++) {
+      const age = elapsed * (0.62 + (i % 11) * 0.035);
+      debrisPositions[i * 3] = debrisOrigin[i * 3] + debrisVelocity[i * 3] * age;
+      debrisPositions[i * 3 + 1] = debrisOrigin[i * 3 + 1] + debrisVelocity[i * 3 + 1] * age - gravity * age * age;
+      debrisPositions[i * 3 + 2] = debrisOrigin[i * 3 + 2] + debrisVelocity[i * 3 + 2] * age;
+    }
+    debrisAttribute.needsUpdate = true;
+    (debris.material as THREE.PointsMaterial).opacity = 0.92 * debrisFade;
+    for (let i = 0; i < sprayCount; i++) {
+      const age = elapsed * (0.82 + (i % 13) * 0.025);
+      sprayPositions[i * 3] = sprayOrigin[i * 3] + sprayVelocity[i * 3] * age;
+      sprayPositions[i * 3 + 1] = sprayOrigin[i * 3 + 1] + sprayVelocity[i * 3 + 1] * age - 0.7 * age * age;
+      sprayPositions[i * 3 + 2] = sprayOrigin[i * 3 + 2] + sprayVelocity[i * 3 + 2] * age;
+    }
+    sprayAttribute.needsUpdate = true;
+    (spray.material as THREE.PointsMaterial).opacity = 0.72 * sprayFade;
+    for (let i = 0; i < 30; i++) {
+      const age = Math.max(0, time - (8.25 + i * 0.11));
+      const phase = i * 2.399;
+      smokePositions[i * 3] = 2.58 + Math.cos(phase) * (0.12 + age * 0.1);
+      smokePositions[i * 3 + 1] = 0.48 + age * (0.23 + (i % 5) * 0.018);
+      smokePositions[i * 3 + 2] = Math.sin(phase) * (0.12 + age * 0.08);
+    }
+    for (let i = 30; i < 90; i++) {
+      const j = i - 30;
+      const age = Math.max(0, time - (9.3 + j * 0.085));
+      const phase = j * 2.399;
+      smokePositions[i * 3] = 2.2 + Math.cos(phase) * (0.16 + age * 0.12);
+      smokePositions[i * 3 + 1] = 0.55 + age * (0.19 + (j % 4) * 0.025);
+      smokePositions[i * 3 + 2] = Math.sin(phase) * (0.14 + age * 0.09);
+    }
+    smokeAttribute.needsUpdate = true;
+    (smoke.material as THREE.PointsMaterial).opacity = 0.32 * smokeFade;
+    flash.scale.setScalar(0.35 + impactEnvelope * 5.5);
+    (flash.material as THREE.MeshBasicMaterial).opacity = 0.9 * impactEnvelope;
+    flashLight.intensity = 42 * impactEnvelope;
+
     const positions = ocean.geometry.attributes.position as THREE.BufferAttribute;
     const original = ocean.userData.originalPositions as Float32Array;
     for (let i = 0; i < positions.count; i++) {
@@ -159,7 +284,7 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     const textures = new Set<THREE.Texture>();
-    for (const root of [bow, stern, iceberg, ocean]) {
+    for (const root of [bow, stern, iceberg, ocean, effects]) {
       root.traverse((node) => {
         const mesh = node as THREE.Mesh;
         if (mesh.geometry) geometries.add(mesh.geometry);
@@ -178,5 +303,5 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
     draco.dispose();
   };
 
-  return { bow, stern, iceberg, ocean, update, dispose };
+  return { bow, stern, iceberg, ocean, effects, update, dispose };
 }
