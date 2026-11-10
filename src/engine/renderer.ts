@@ -51,7 +51,7 @@ export class MotionRenderer {
 
   setScene(id: SceneId): void {
     this.active = id;
-    const epoch = ++this.sceneEpoch;
+    this.sceneEpoch++;
     this.titanicAssets?.dispose();
     this.titanicAssets = undefined;
     for (const object of this.objects) { this.scene.remove(object); if (!object.userData.assetManaged) this.disposeObject(object); }
@@ -419,6 +419,7 @@ export class MotionRenderer {
     const t = clamp(seconds, 0, 30);
     this.currentTime = t;
     this.scene.background = new THREE.Color(this.active === 'generated' && this.generatedSpec ? this.generatedSpec.background : this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : this.active === 'titanic' ? '#020b13' : '#050914');
+    this.scene.fog = this.active === 'titanic' ? new THREE.FogExp2('#020b13', 0.035) : null;
     for (const object of this.objects) {
       const kind = object.userData.kind;
 
