@@ -67,3 +67,12 @@ Switch to **AI Director** to use the LM Studio prompt-to-scene provider. Both mo
 ### Specialized whiskey product composition
 
 The offline procedural director recognizes whiskey / виски / «Самогонщики» briefs and creates a dedicated product layout instead of falling back to a generic sphere: bottle body, shoulders, neck, stopper, amber liquid, front label, gold orbital rings, brand title and optional tagline. Explicit title text takes precedence over the Latin transliteration in the brand name. The procedural bottle is a stylized primitive-based 3D model; it is not photorealistic glass or a physically simulated liquid.
+
+
+## Titanic cinematic asset scene
+
+The TITANIC sequence uses a high-detail GLTF asset set instead of the original primitive ship approximation. The browser loads the hull, deck structure, funnels, lifeboats, masts, bridge fittings, propellers, rudder and iceberg from a pinned upstream revision. Draco-compressed meshes are decoded in the browser. The scene adds a deforming physical ocean surface, clipped bow/stern asset groups, deterministic collision/separation/sinking motion, and absolute-time camera shots.
+
+Asset source: [KantLex / 3D-Titanic-Model](https://github.com/KantLex/3D-Titanic-Model), pinned to `661b58512d0bacd36ba2c5cd9dd060f0f105cb0d`. The source project is MIT licensed; its copyright and license terms remain applicable. The model files are loaded from jsDelivr at runtime, so the TITANIC scene requires an internet connection. Other scenes remain fully local.
+
+This is a cinematic real-time reconstruction, not a fluid/structural engineering simulation. The ship split is a deterministic mesh-clipping animation; it does not calculate physical hull fracture.
