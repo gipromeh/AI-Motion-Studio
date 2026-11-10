@@ -11,6 +11,7 @@ export class MotionRenderer {
   private readonly objects: THREE.Object3D[] = [];
   private active: SceneId = 'type';
   private currentTime = 0;
+  private outputSizeLocked = false;
   private titleCanvas?: HTMLCanvasElement;
   private titleTexture?: THREE.CanvasTexture;
   private titleText = 'FUTURE';
@@ -34,6 +35,8 @@ export class MotionRenderer {
   }
 
   private resize = (): void => {
+    if (this.outputSizeLocked) return;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     const rect = this.canvas.getBoundingClientRect();
     this.renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)), false);
     this.camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
@@ -48,6 +51,21 @@ export class MotionRenderer {
     if (id === 'product') this.buildProductScene();
     if (id === 'science') this.buildScienceScene();
     this.seek(0);
+  }
+
+  setOutputSize(width: number, height: number): void {
+    this.outputSizeLocked = true;
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  restoreViewportSize(): void {
+    this.outputSizeLocked = false;
+    this.resize();
+    this.seek(this.currentTime);
   }
 
   private add(object: THREE.Object3D): void { this.scene.add(object); this.objects.push(object); }

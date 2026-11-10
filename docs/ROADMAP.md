@@ -12,10 +12,11 @@
 - [x] Editable kinetic typography content and color
 - [x] Numeric keyframe model with stable IDs and deterministic interpolation
 - [x] Add, select, edit, delete scale keyframes from the UI
+- [x] H.264 MP4 export from deterministic scene frames (1080p, 30 FPS)
+- [ ] Audio track and synchronized sound design
 - [ ] Scene registry and typed scene graph
 - [ ] Font loading and typography controls (family, weight, tracking, line-height)
 - [ ] Multi-property keyframe tracks and easing selection
-- [ ] Deterministic audio cue timeline
 - [ ] Contact sheet and frame-strip export
 - [ ] Browser compatibility and performance tests
 
@@ -27,7 +28,7 @@
 - [ ] Human approval gates before scene generation
 
 ## M3 — Export and deployment
-- [ ] WebM/MP4 export strategy
+- [ ] MP4 quality presets and large-file streaming
 - [ ] Cloud render worker adapter
 - [ ] GitHub Pages deployment workflow
 - [ ] Project import/export format
