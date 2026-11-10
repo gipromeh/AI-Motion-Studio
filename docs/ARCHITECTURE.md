@@ -1,18 +1,21 @@
 # Architecture
 
 ## Product boundary
-The browser application owns authoring, preview, deterministic scene playback, and frame export. Rendering backends and model providers are adapters and must not leak into scene definitions.
+The browser application owns authoring, preview, deterministic scene playback, and frame export. Rendering backends and model providers remain adapters.
 
 ## Scene contract
-A scene is a deterministic function of absolute time. `seek(t)` must fully derive every animated property from `t`; it must not depend on previously rendered frames. Random-looking layouts must use seeded PRNGs.
+A scene is a deterministic function of absolute time. seek(t) derives every animated property from the requested time, independent of previous frames. Random-looking layouts use seeded PRNGs.
 
 ## Layers
-- UI: React project browser, preview, timeline, transport, export.
-- Motion engine: scene registry, spring/keyframe math, WebGL renderer, audio cues.
-- AI orchestration (next milestone): provider interface, director, storyboard, style guide, critic.
-- Export (later): browser frame capture, WebCodecs where supported, server/FFmpeg adapter.
+- UI: React project browser, preview, typography properties, timeline and transport.
+- Motion engine: Three.js renderer, spring functions, keyframe model and interpolation.
+- AI orchestration: provider-neutral director, storyboard, style guide and critic (planned).
+- Export: PNG now; WebCodecs/server FFmpeg adapter planned.
+
+## Keyframe model
+A keyframe has a stable ID, time in seconds and numeric value. Tracks are sorted at evaluation time; interpolation is linear with endpoint hold. Editing a keyframe at an occupied timestamp replaces the previous key at that timestamp. Moving an existing keyframe also enforces timestamp uniqueness.
 
 ## Constraints
 - No API keys in the browser bundle.
-- LM Studio is reached through an explicit local bridge/proxy; browser CORS and mixed-content restrictions must be handled deliberately.
+- LM Studio must be reached through an explicit local bridge/proxy; browser CORS and mixed-content restrictions must be handled deliberately.
 - GitHub Pages is static hosting, not a server runtime.
