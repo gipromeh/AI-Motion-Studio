@@ -6,11 +6,15 @@
 - [x] Three demo scenes
 - [x] Timeline transport and PNG frame export
 - [x] Spring primitives and unit tests
+- [x] CI verification
 
 ## M1 — Production motion engine
+- [x] Editable kinetic typography content and color
+- [x] Numeric keyframe model with stable IDs and deterministic interpolation
+- [x] Add, select, edit, delete scale keyframes from the UI
 - [ ] Scene registry and typed scene graph
-- [ ] 2D typography compositor with font loading
-- [ ] Keyframe editor and closed-form spring tracks
+- [ ] Font loading and typography controls (family, weight, tracking, line-height)
+- [ ] Multi-property keyframe tracks and easing selection
 - [ ] Deterministic audio cue timeline
 - [ ] Contact sheet and frame-strip export
 - [ ] Browser compatibility and performance tests
@@ -31,4 +35,4 @@
 ## Demonstration briefs
 1. FUTURE: 15-second kinetic typography film.
 2. OPTIC: 20-second precision optical-product film.
-3. ORBIT: 30-second Earth-to-deep-space science film.
+3. ORBIT: 30-second Earth-to-deep-space science visualization.
