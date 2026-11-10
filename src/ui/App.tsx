@@ -6,6 +6,7 @@ import type { SceneId } from '../engine/scene';
 import { upsertKeyframe, removeKeyframe, type Keyframe } from '../engine/keyframes';
 import { exportMp4 } from '../engine/exporter';
 import { discoverLmStudioModels, generateSceneFromPrompt } from '../engine/lmStudio';
+import { generateProceduralScene } from '../engine/proceduralDirector';
 import type { GeneratedSceneSpec } from '../engine/generatedScene';
 
 const projects: { id: SceneId; number: string; title: string; subtitle: string; duration: number; tag: string }[] = [
@@ -32,6 +33,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState('');
+  const [directorMode, setDirectorMode] = useState<'procedural' | 'ai'>('procedural');
   const [prompt, setPrompt] = useState('Create a 15-second cinematic product film. A precision glass lens floats in the center, three luminous metal rings orbit around it, the camera slowly pushes in, and the final title reads OPTICS 2030.');
   const [lmBaseUrl, setLmBaseUrl] = useState('http://localhost:1234/v1');
   const [lmModel, setLmModel] = useState('');
@@ -135,6 +137,21 @@ export default function App() {
     } finally { setGenerating(false); }
   };
 
+  const handleGenerateProceduralScene = () => {
+    setAiError('');
+    setAiNotice('');
+    try {
+      const result = generateProceduralScene(prompt);
+      setGeneratedScene(result);
+      setActive('generated');
+      setTime(0);
+      setPlaying(false);
+      setAiNotice('Procedural scene created locally: ' + result.objects.length + ' objects · ' + result.duration + ' seconds. No model or network connection required.');
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'Procedural scene generation failed.');
+    }
+  };
+
   const format = (n: number) => `${Math.floor(n / 60).toString().padStart(2, '0')}:${(n % 60).toFixed(2).padStart(5, '0')}`;
 
   return <main className="app-shell">
@@ -145,13 +162,18 @@ export default function App() {
       <section className="ai-prompt-panel">
         <div className="ai-panel-heading"><div><span className="ai-kicker"><Sparkles size={13}/> AI DIRECTOR</span><h2>Describe the scene you want</h2><p>LM Studio turns your brief into a structured, editable 3D composition.</p></div><span className="ai-status">{lmStatus}</span></div>
         <textarea className="ai-prompt-input" value={prompt} maxLength={2000} onChange={event => setPrompt(event.target.value)} placeholder="Describe objects, motion, camera, lighting, style and final title…" disabled={generating}/>
-        <div className="ai-connection-row">
-          <label>LM STUDIO API<input value={lmBaseUrl} onChange={event => setLmBaseUrl(event.target.value)} placeholder="http://localhost:1234/v1" disabled={generating || connecting}/></label>
-          <label>MODEL ID<input value={lmModel} onChange={event => setLmModel(event.target.value)} placeholder="Auto-detect loaded model" disabled={generating}/></label>
-          <button className="ai-connect-button" onClick={handleConnectLmStudio} disabled={connecting || generating}>{connecting ? <LoaderCircle size={14} className="spin"/> : <Activity size={14}/>} {connecting ? 'Checking…' : 'Connect'}</button>
-          <button className="ai-generate-button" onClick={handleGenerateScene} disabled={generating || connecting || prompt.trim().length < 8}>{generating ? <LoaderCircle size={15} className="spin"/> : <Sparkles size={15}/>} {generating ? 'Generating scene…' : 'Generate scene'}</button>
-        </div>
-        <div className="ai-footnote">LM Studio: start the Local Server and enable CORS. For a local server on your PC, open the studio on that PC via localhost; an iPhone cannot reach the PC through its own localhost address.</div>
+        {directorMode === 'ai' ? <>
+          <div className="ai-connection-row">
+            <label>LM STUDIO API<input value={lmBaseUrl} onChange={event => setLmBaseUrl(event.target.value)} placeholder="http://localhost:1234/v1" disabled={generating || connecting}/></label>
+            <label>MODEL ID<input value={lmModel} onChange={event => setLmModel(event.target.value)} placeholder="Auto-detect loaded model" disabled={generating}/></label>
+            <button className="ai-connect-button" onClick={handleConnectLmStudio} disabled={connecting || generating}>{connecting ? <LoaderCircle size={14} className="spin"/> : <Activity size={14}/>} {connecting ? 'Checking…' : 'Connect'}</button>
+            <button className="ai-generate-button" onClick={handleGenerateScene} disabled={generating || connecting || prompt.trim().length < 8}>{generating ? <LoaderCircle size={15} className="spin"/> : <Sparkles size={15}/>} {generating ? 'Generating scene…' : 'Generate scene'}</button>
+          </div>
+          <div className="ai-footnote">Requires LM Studio Local Server, a loaded instruct model and CORS permission. On iPhone, localhost refers to the phone itself.</div>
+        </> : <div className="procedural-action-row">
+          <span>LOCAL ENGINE · RULE-BASED SCENE SYNTHESIS</span>
+          <button className="ai-generate-button" onClick={handleGenerateProceduralScene} disabled={prompt.trim().length < 8 || exporting}><Sparkles size={15}/> Generate scene offline</button>
+        </div>}
         {aiNotice && <div className="ai-notice" role="status">{aiNotice}</div>}
         {aiError && <div className="ai-error" role="alert">{aiError}</div>}
       </section>
