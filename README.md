@@ -63,3 +63,7 @@ The GitHub Pages build is useful for previewing the editor, but a browser on an 
 The editor defaults to **Procedural Director**, which creates a validated scene locally in the browser. It does not call an LLM, require LM Studio, or make a network request. It recognizes common English and Russian descriptions for product objects, orbital compositions, colors, duration, camera push-in, and title text, then builds the same `GeneratedSceneSpec` consumed by the Three.js renderer. Generated scenes remain seekable and use the existing MP4 export pipeline.
 
 Switch to **AI Director** to use the LM Studio prompt-to-scene provider. Both modes share the same scene renderer and export path. Procedural generation is deterministic and rule-based; it is not an open-ended language model and only interprets the supported prompt vocabulary.
+
+### Specialized whiskey product composition
+
+The offline procedural director recognizes whiskey / виски / «Самогонщики» briefs and creates a dedicated product layout instead of falling back to a generic sphere: bottle body, shoulders, neck, stopper, amber liquid, front label, gold orbital rings, brand title and optional tagline. Explicit title text takes precedence over the Latin transliteration in the brand name. The procedural bottle is a stylized primitive-based 3D model; it is not photorealistic glass or a physically simulated liquid.
