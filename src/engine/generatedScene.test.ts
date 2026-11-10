@@ -59,7 +59,7 @@ describe('generated scene schema', () => {
 
   it('parses JSON wrapped in a model code fence', () => {
     const fence = String.fromCharCode(96).repeat(3);
-    const parsed = parseGeneratedSceneResponse(fence + 'json\\n' + JSON.stringify(validScene) + '\\n' + fence);
+    const parsed = parseGeneratedSceneResponse(fence + 'json' + String.fromCharCode(10) + JSON.stringify(validScene) + String.fromCharCode(10) + fence);
     expect(parsed.title).toBe('OPTICS 2030');
   });
 });
