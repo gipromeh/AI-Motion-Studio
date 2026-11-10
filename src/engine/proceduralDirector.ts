@@ -1,14 +1,14 @@
 import { validateGeneratedScene, type GeneratedObject, type GeneratedSceneSpec } from './generatedScene';
 
 const colorMap: Array<[RegExp, string]> = [
-  [/\\b(red|красн\\w*)\\b/i, '#f05b58'],
-  [/\\b(blue|син\\w*|голуб\\w*)\\b/i, '#4b83e8'],
-  [/\\b(green|зелён\\w*|зелен\\w*)\\b/i, '#55c98b'],
-  [/\\b(gold|золот\\w*|золотист\\w*)\\b/i, '#d8a64b'],
-  [/\\b(purple|фиолетов\\w*|пурпур\\w*)\\b/i, '#9b72df'],
-  [/\\b(cyan|бирюзов\\w*|циан\\w*)\\b/i, '#35c8d8'],
-  [/\\b(white|бел\\w*)\\b/i, '#e9edf4'],
-  [/\\b(orange|оранжев\\w*)\\b/i, '#ed8958']
+  [/\b(red|красн\w*)\b/i, '#f05b58'],
+  [/\b(blue|син\w*|голуб\w*)\b/i, '#4b83e8'],
+  [/\b(green|зелён\w*|зелен\w*)\b/i, '#55c98b'],
+  [/\b(gold|золот\w*|золотист\w*)\b/i, '#d8a64b'],
+  [/\b(purple|фиолетов\w*|пурпур\w*)\b/i, '#9b72df'],
+  [/\b(cyan|бирюзов\w*|циан\w*)\b/i, '#35c8d8'],
+  [/\b(white|бел\w*)\b/i, '#e9edf4'],
+  [/\b(orange|оранжев\w*)\b/i, '#ed8958']
 ];
 
 function inferColor(prompt: string): string {
@@ -16,24 +16,24 @@ function inferColor(prompt: string): string {
 }
 
 function inferDuration(prompt: string): number {
-  const match = prompt.match(/(\\d+(?:[.,]\\d+)?)\\s*(?:-\\s*)?(?:second|seconds|sec|s|секунд\\w*|сек\\.?)/i);
+  const match = prompt.match(/(\d+(?:[.,]\d+)?)\s*(?:-\s*)?(?:second|seconds|sec|s|секунд\w*|сек\.?)/i);
   return Math.max(5, Math.min(30, match ? Number(match[1].replace(',', '.')) : 15));
 }
 
 function inferTitle(prompt: string): string {
   const explicitPatterns = [
-    /(?:brand called|brand name|название бренда|бренд называется)\\s*[:"«“]?\\s*[«“"]?([^»”"’'\\n.,]{2,40})/i,
-    /(?:title|заголовок|надпись|текст)\\s*(?:reads|:|будет|—|-)\\s*[«“"]?([^»”"\\n]{2,40})[»”"]?/i,
-    /(?:reads|надпись)\\s*[«“"]([^»”"]{2,40})[»”"]/i
+    /(?:brand called|brand name|название бренда|бренд называется)\s*[:"«“]?\s*[«“"]?([^»”"’'\n.,]{2,40})/i,
+    /(?:title|заголовок|надпись|текст)\s*(?:reads|:|будет|—|-)\s*[«“"]?([^»”"\n]{2,40})[»”"]?/i,
+    /(?:reads|надпись)\s*[«“"]([^»”"]{2,40})[»”"]/i
   ];
   const found = explicitPatterns.map(pattern => prompt.match(pattern)?.[1]?.trim()).find(Boolean);
   if (found) return found.replace(/[.!?]+$/, '').toUpperCase().slice(0, 32);
-  const words = prompt.replace(/[^\\p{L}\\p{N}\\s-]/gu, ' ').trim().split(/\\s+/).filter(word => word.length > 3);
+  const words = prompt.replace(/[^\p{L}\p{N}\s-]/gu, ' ').trim().split(/\s+/).filter(word => word.length > 3);
   return (words.slice(-2).join(' ') || 'NEW COMPOSITION').toUpperCase().slice(0, 32);
 }
 
 function inferTagline(prompt: string): string | undefined {
-  const match = prompt.match(/(?:final tagline|tagline|слоган)\\s*[:—-]?\\s*[«“"]([^»”"]{2,48})[»”"]/i);
+  const match = prompt.match(/(?:final tagline|tagline|слоган)\s*[:—-]?\s*[«“"]([^»”"]{2,48})[»”"]/i);
   return match?.[1]?.trim();
 }
 
@@ -65,7 +65,7 @@ function buildWhiskeyScene(prompt: string, duration: number, title: string): Gen
     { id: 'bottle-label', type: 'text', text: title, position: [0, -0.22, 0.49], rotation: [0, 0, 0], scale: [0.72, 0.27, 1], color: '#3b2115', animations: [animate('opacity', 0, 1, 2.2, 3.2, 'easeOut')] },
   ];
 
-  const countMatch = prompt.match(/\\b(\\d+)\\s*(?:rings?|кольц\\w*)/i);
+  const countMatch = prompt.match(/\b(\d+)\s*(?:rings?|кольц\w*)/i);
   const ringCount = Math.max(2, Math.min(5, countMatch ? Number(countMatch[1]) : 3));
   for (let i = 0; i < ringCount; i++) {
     const angle = (Math.PI / ringCount) * i;
@@ -92,12 +92,12 @@ export function generateProceduralScene(promptText: string): GeneratedSceneSpec 
 
   const duration = inferDuration(prompt);
   const color = inferColor(prompt);
-  const isWhiskey = /whisk(?:e)?y|виск\\w*|самогонщик\\w*/i.test(prompt);
+  const isWhiskey = /whisk(?:e)?y|виск\w*|самогонщик\w*/i.test(prompt);
   const isProduct = /lens|оптик|линз|product|продукт|предмет|товар|час|phone|телефон/i.test(prompt) || isWhiskey;
   const isOrbit = /orbit|ring|кольц|орбит|planet|планет|space|космос|спутник/i.test(prompt);
   const isTypography = /typograph|текст|типограф|букв|слово|title|заголов/i.test(prompt);
   // "lighting" is not a request for a light background; only explicit background language changes it.
-  const lightBackground = /(?:light|white|светл\\w*|бел\\w*)\\s+(?:background|фон)|фон\\s+(?:светл\\w*|бел\\w*)/i.test(prompt);
+  const lightBackground = /(?:light|white|светл\w*|бел\w*)\s+(?:background|фон)|фон\s+(?:светл\w*|бел\w*)/i.test(prompt);
   const background = lightBackground ? '#e9edf4' : '#080d18';
   const title = inferTitle(prompt);
   const objects: GeneratedObject[] = isWhiskey ? buildWhiskeyScene(prompt, duration, title) : [];
@@ -123,7 +123,7 @@ export function generateProceduralScene(promptText: string): GeneratedSceneSpec 
   }
 
   if (!isWhiskey && (isOrbit || isProduct)) {
-    const countMatch = prompt.match(/\\b(\\d+)\\s*(?:rings?|кольц\\w*)/i);
+    const countMatch = prompt.match(/\b(\d+)\s*(?:rings?|кольц\w*)/i);
     const count = Math.max(2, Math.min(5, countMatch ? Number(countMatch[1]) : 3));
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI / count) * i;
