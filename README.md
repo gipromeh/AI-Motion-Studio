@@ -17,11 +17,21 @@ Browser-first motion-design system. This repository starts with a deterministic 
 
 ## Development
 ```bash
-npm install
+npm ci
 npm run dev
 npm run test
 npm run build
 ```
+
+## GitHub Pages
+
+The `Deploy to GitHub Pages` workflow builds the Vite app and publishes `dist` whenever a commit reaches `main`. The Vite build uses relative asset paths so the app works from the repository subpath.
+
+After enabling GitHub Pages with **Build and deployment → Source → GitHub Actions** in repository settings, the application is available at:
+
+https://gipromeh.github.io/AI-Motion-Studio/
+
+The workflow can also be started manually from the Actions tab.
 
 ## MP4 export
 
