@@ -70,7 +70,7 @@ function makeOcean(): THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial
     reflectivity: 0.85,
   });
   const ocean = new THREE.Mesh(geometry, material);
-  ocean.position.y = 0.255;
+  ocean.position.y = 0.2635;
   ocean.userData.originalPositions = (geometry.attributes.position as THREE.BufferAttribute).array.slice();
   ocean.receiveShadow = true;
   ocean.userData.kind = 'titanic-ocean';
@@ -105,13 +105,12 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
   const stern = cloneForClipping(sourceShip, 'stern');
   bow.scale.setScalar(SCALE);
   stern.scale.setScalar(SCALE);
-  bow.position.y = -0.255;
-  stern.position.y = -0.255;
+
 
   const iceberg = icebergSource.clone(true);
   iceberg.scale.setScalar(SCALE);
   // The source model is authored in Titanic ship coordinates; offset it from its historical placement to the collision mark.
-  iceberg.position.set(3.09, -0.237, -0.86);
+  iceberg.position.set(3.09, 0, -0.86);
   iceberg.userData.kind = 'titanic-asset-iceberg';
 
   const ocean = makeOcean();
@@ -126,8 +125,8 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
 
     bow.position.x = 0.06 * approach + bowOffset;
     stern.position.x = 0.06 * approach + sternOffset;
-    bow.position.y = -0.255 - 0.16 * impact - 1.18 * sinking;
-    stern.position.y = -0.255 + 0.08 * impact - 0.78 * sinking;
+    bow.position.y = -0.16 * impact - 1.18 * sinking;
+    stern.position.y = 0.08 * impact - 0.78 * sinking;
     bow.rotation.z = -0.035 * impact - 0.38 * separation - 0.24 * sinking;
     stern.rotation.z = 0.02 * impact + 0.25 * separation + 0.16 * sinking;
     bow.rotation.y = 0.02 * impact;
