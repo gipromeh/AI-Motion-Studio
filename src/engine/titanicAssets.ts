@@ -110,7 +110,8 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
 
   const iceberg = icebergSource.clone(true);
   iceberg.scale.setScalar(SCALE);
-  iceberg.position.set(3.48, -0.05, 0.44);
+  // The source model is authored in Titanic ship coordinates; offset it from its historical placement to the collision mark.
+  iceberg.position.set(3.09, -0.237, -0.86);
   iceberg.userData.kind = 'titanic-asset-iceberg';
 
   const ocean = makeOcean();
@@ -137,8 +138,8 @@ export async function loadTitanicAssetScene(): Promise<TitanicAssetScene> {
     bowPlane.constant = -bowOffset;
     sternPlane.constant = sternOffset;
 
-    iceberg.position.x = 3.48 - 0.12 * approach;
-    iceberg.position.z = 0.44 - 0.06 * approach;
+    iceberg.position.x = 3.09 - 0.12 * approach;
+    iceberg.position.z = -0.86 - 0.06 * approach;
     iceberg.rotation.y = Math.sin(time * 0.18) * 0.012;
 
     const positions = ocean.geometry.attributes.position as THREE.BufferAttribute;
