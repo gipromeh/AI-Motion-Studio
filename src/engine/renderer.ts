@@ -184,26 +184,42 @@ export class MotionRenderer {
       wave.userData.kind = 'titanic-wave'; wave.userData.index = i; this.add(wave);
     }
 
-    const ship = new THREE.Group();
-    const hullShape = new THREE.Shape();
-    hullShape.moveTo(-3.2, 0.05); hullShape.lineTo(3.2, 0.05); hullShape.lineTo(2.65, -0.48); hullShape.lineTo(-2.7, -0.48); hullShape.closePath();
-    const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(hullShape, { depth: 0.32, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.04, bevelThickness: 0.04 }), new THREE.MeshStandardMaterial({ color: '#111c28', metalness: 0.4, roughness: 0.5 }));
-    hull.position.z = 0.1; ship.add(hull);
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.2, 0.36), new THREE.MeshStandardMaterial({ color: '#d7d2c5' }));
-    deck.position.set(0, 0.2, 0.25); ship.add(deck);
-    for (let i = 0; i < 4; i++) {
-      const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.72, 16), new THREE.MeshStandardMaterial({ color: '#b88b55' }));
-      funnel.position.set(-1.5 + i * 0.9, 0.65, 0.25); ship.add(funnel);
-    }
-    for (let row = 0; row < 2; row++) for (let i = 0; i < 22; i++) {
-      const light = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.025), new THREE.MeshBasicMaterial({ color: '#e8c98c' }));
-      light.position.set(-2.3 + i * 0.21, 0.22 + row * 0.13, 0.47); ship.add(light);
-    }
-    ship.position.set(-0.2, -0.45, 0.15); ship.userData.kind = 'titanic-ship'; this.add(ship);
-
-    const iceberg = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: '#9ab8c6', emissive: '#19394c', emissiveIntensity: 0.25, roughness: 0.3, flatShading: true }));
-    iceberg.scale.set(0.82, 1.18, 0.52); iceberg.position.set(5, -0.25, -0.3); iceberg.userData.kind = 'titanic-iceberg'; this.add(iceberg);
-
+    const makeShipHalf = (side: 'stern' | 'bow') => {
+      const half = new THREE.Group();
+      half.userData.kind = 'titanic-ship-half'; half.userData.side = side;
+      const left = side === 'stern';
+      const shape = new THREE.Shape();
+      if (left) { shape.moveTo(-3.2, 0.05); shape.lineTo(0, 0.05); shape.lineTo(0, -0.46); shape.lineTo(-2.7, -0.46); }
+      else { shape.moveTo(0, 0.05); shape.lineTo(3.2, 0.05); shape.lineTo(2.65, -0.46); shape.lineTo(0, -0.46); }
+      shape.closePath();
+      const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.32, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.04, bevelThickness: 0.04 }), new THREE.MeshStandardMaterial({ color: '#111c28', metalness: 0.4, roughness: 0.5 }));
+      hull.position.z = 0.1; half.add(hull);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(3.15, 0.2, 0.36), new THREE.MeshStandardMaterial({ color: '#d7d2c5' }));
+      deck.position.set(left ? -1.6 : 1.6, 0.2, 0.25); half.add(deck);
+      const first = left ? 0 : 2; const last = left ? 2 : 4;
+      for (let i = first; i < last; i++) {
+        const x = -1.5 + i * 0.9;
+        const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.72, 16), new THREE.MeshStandardMaterial({ color: '#b88b55' }));
+        funnel.position.set(x, 0.65, 0.25); half.add(funnel);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.09, 16), new THREE.MeshStandardMaterial({ color: '#252b32' }));
+        cap.position.set(x, 1.05, 0.25); half.add(cap);
+      }
+      const firstWindow = left ? 0 : 11; const lastWindow = left ? 11 : 22;
+      for (let row = 0; row < 2; row++) for (let i = firstWindow; i < lastWindow; i++) {
+        const light = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.025), new THREE.MeshBasicMaterial({ color: '#e8c98c' }));
+        light.position.set(-2.3 + i * 0.21, 0.22 + row * 0.13, 0.47); half.add(light);
+      }
+      half.position.set(-0.2, -0.45, 0.15); this.add(half);
+    };
+    makeShipHalf('stern'); makeShipHalf('bow');
+    const iceberg = new THREE.Group();
+    const peak = new THREE.Mesh(new THREE.ConeGeometry(0.92, 2.35, 7, 1), new THREE.MeshStandardMaterial({ color: '#d9e8ee', emissive: '#304d5b', emissiveIntensity: 0.22, roughness: 0.24, flatShading: true }));
+    peak.position.set(0, 0.72, 0); peak.rotation.z = -0.13; iceberg.add(peak);
+    const shoulder = new THREE.Mesh(new THREE.IcosahedronGeometry(0.86, 0), new THREE.MeshStandardMaterial({ color: '#a9c3ce', emissive: '#1c3b4c', emissiveIntensity: 0.28, roughness: 0.3, flatShading: true }));
+    shoulder.scale.set(1.15, 0.62, 0.72); shoulder.position.set(0.08, -0.15, 0.02); iceberg.add(shoulder);
+    const submerged = new THREE.Mesh(new THREE.IcosahedronGeometry(1.12, 1), new THREE.MeshStandardMaterial({ color: '#315a70', emissive: '#102d40', emissiveIntensity: 0.35, roughness: 0.42, transparent: true, opacity: 0.92, flatShading: true }));
+    submerged.scale.set(1.28, 1.22, 0.82); submerged.position.set(0.05, -1.18, -0.08); iceberg.add(submerged);
+    iceberg.position.set(5.1, -0.35, -0.3); iceberg.userData.kind = 'titanic-iceberg'; this.add(iceberg);
     makeTitle('A STORY THAT CROSSED THE OCEAN', '500 42px Georgia, serif', '#b7c7ce', 7, 0.42, 1.8, 'overline');
     makeTitle('TITANIC', 'italic 900 300px Georgia, serif', '#f2e4c7', 7.8, 1.8, 0.72, 'main');
     makeTitle('THE LEGEND NEVER SINKS', '600 48px Arial, sans-serif', '#9ebdca', 6.5, 0.48, -0.35, 'subtitle');
@@ -423,16 +439,21 @@ export class MotionRenderer {
     for (const object of this.objects) {
       const kind = object.userData.kind;
 
-      if (kind === 'titanic-ship') {
-        const reveal = smoothstep(1.2, 4.2, t);
-        object.position.x = -0.65 + reveal * 0.45 + Math.sin(t * 0.38) * 0.035;
+      if (kind === 'titanic-ship-half') {
+        const side = object.userData.side as 'stern' | 'bow';
+        const collision = smoothstep(7.4, 8.5, t);
+        const split = smoothstep(8.0, 10.2, t);
+        const sink = smoothstep(11.5, 18, t);
+        object.position.x = -0.2 + (side === 'stern' ? -0.68 : 0.78) * split;
+        object.position.y = -0.45 + (side === 'stern' ? 0.28 : -0.18) * collision - (side === 'stern' ? 1.15 : 1.75) * sink;
+        object.rotation.z = side === 'stern' ? 0.035 * collision + 0.34 * split + 0.18 * sink : -0.07 * collision - 0.52 * split - 0.42 * sink;
         object.rotation.y = Math.sin(t * 0.22) * 0.025;
-        object.scale.setScalar(0.78 + reveal * 0.22);
+        object.scale.setScalar(0.92 + 0.08 * smoothstep(1.2, 4.2, t));
       }
       if (kind === 'titanic-iceberg') {
-        const reveal = smoothstep(5.2, 8.4, t);
-        object.position.x = 5.4 - reveal * 0.55;
-        object.rotation.y = Math.sin(t * 0.18) * 0.05;
+        const approach = smoothstep(5.0, 8.1, t);
+        object.position.x = 5.1 - approach * 1.35;
+        object.rotation.y = Math.sin(t * 0.18) * 0.025;
       }
       if (kind === 'titanic-title') {
         const mesh = object as THREE.Mesh;
