@@ -4,6 +4,7 @@ import type { GeneratedSceneSpec, GeneratedObject, SceneAnimation } from './gene
 import { clamp, easeOutCubic, seededRandom, smoothstep } from './scene';
 import { spring } from './spring';
 import { evaluateTrack, type Keyframe } from './keyframes';
+import { loadTitanicAssetScene, type TitanicAssetScene } from './titanicAssets';
 
 export class MotionRenderer {
   private readonly renderer: THREE.WebGLRenderer;
@@ -19,10 +20,13 @@ export class MotionRenderer {
   private titleColor = '#f1eee7';
   private titleScaleKeys: Keyframe[] = [{ id: 'title-start', time: 0, value: 0.82 }, { id: 'title-full', time: 1.2, value: 1 }];
   private generatedSpec?: GeneratedSceneSpec;
+  private titanicAssets?: TitanicAssetScene;
+  private sceneEpoch = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.localClippingEnabled = true;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
@@ -47,7 +51,10 @@ export class MotionRenderer {
 
   setScene(id: SceneId): void {
     this.active = id;
-    for (const object of this.objects) { this.scene.remove(object); this.disposeObject(object); }
+    this.sceneEpoch++;
+    this.titanicAssets?.dispose();
+    this.titanicAssets = undefined;
+    for (const object of this.objects) { this.scene.remove(object); if (!object.userData.assetManaged) this.disposeObject(object); }
     this.objects.length = 0;
     if (id === 'type') this.buildTypeScene();
     if (id === 'product') this.buildProductScene();
@@ -151,6 +158,7 @@ export class MotionRenderer {
 
 
   private buildTitanicScene(): void {
+    const epoch = this.sceneEpoch;
     const makeTitle = (text: string, font: string, color: string, width: number, height: number, y: number, layer: string) => {
       const canvas = document.createElement('canvas');
       canvas.width = 1800; canvas.height = 420;
@@ -168,8 +176,6 @@ export class MotionRenderer {
       this.add(mesh);
     };
 
-    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(22, 8), new THREE.MeshBasicMaterial({ color: '#071827' }));
-    ocean.position.set(0, -2.5, -2.5); this.add(ocean);
     const random = seededRandom(1912);
     const starPositions: number[] = [];
     for (let i = 0; i < 260; i++) starPositions.push((random() - 0.5) * 18, random() * 6 - 0.1, -1.8 - random() * 2);
@@ -178,48 +184,7 @@ export class MotionRenderer {
     const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: '#b7d7e8', size: 0.025, transparent: true, opacity: 0.7 }));
     stars.userData.kind = 'titanic-stars'; this.add(stars);
 
-    for (let i = 0; i < 5; i++) {
-      const wave = new THREE.Mesh(new THREE.PlaneGeometry(15 - i * 1.2, 0.012), new THREE.MeshBasicMaterial({ color: '#6c9eb3', transparent: true, opacity: 0.3 }));
-      wave.position.set(0, -1.7 - i * 0.22, -0.8 + i * 0.04);
-      wave.userData.kind = 'titanic-wave'; wave.userData.index = i; this.add(wave);
-    }
-
-    const makeShipHalf = (side: 'stern' | 'bow') => {
-      const half = new THREE.Group();
-      half.userData.kind = 'titanic-ship-half'; half.userData.side = side;
-      const left = side === 'stern';
-      const shape = new THREE.Shape();
-      if (left) { shape.moveTo(-3.2, 0.05); shape.lineTo(0, 0.05); shape.lineTo(0, -0.46); shape.lineTo(-2.7, -0.46); }
-      else { shape.moveTo(0, 0.05); shape.lineTo(3.2, 0.05); shape.lineTo(2.65, -0.46); shape.lineTo(0, -0.46); }
-      shape.closePath();
-      const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.32, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.04, bevelThickness: 0.04 }), new THREE.MeshStandardMaterial({ color: '#111c28', metalness: 0.4, roughness: 0.5 }));
-      hull.position.z = 0.1; half.add(hull);
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(3.15, 0.2, 0.36), new THREE.MeshStandardMaterial({ color: '#d7d2c5' }));
-      deck.position.set(left ? -1.6 : 1.6, 0.2, 0.25); half.add(deck);
-      const first = left ? 0 : 2; const last = left ? 2 : 4;
-      for (let i = first; i < last; i++) {
-        const x = -1.5 + i * 0.9;
-        const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.72, 16), new THREE.MeshStandardMaterial({ color: '#b88b55' }));
-        funnel.position.set(x, 0.65, 0.25); half.add(funnel);
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.09, 16), new THREE.MeshStandardMaterial({ color: '#252b32' }));
-        cap.position.set(x, 1.05, 0.25); half.add(cap);
-      }
-      const firstWindow = left ? 0 : 11; const lastWindow = left ? 11 : 22;
-      for (let row = 0; row < 2; row++) for (let i = firstWindow; i < lastWindow; i++) {
-        const light = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.025), new THREE.MeshBasicMaterial({ color: '#e8c98c' }));
-        light.position.set(-2.3 + i * 0.21, 0.22 + row * 0.13, 0.47); half.add(light);
-      }
-      half.position.set(-0.2, -0.45, 0.15); this.add(half);
-    };
-    makeShipHalf('stern'); makeShipHalf('bow');
-    const iceberg = new THREE.Group();
-    const peak = new THREE.Mesh(new THREE.ConeGeometry(0.92, 2.35, 7, 1), new THREE.MeshStandardMaterial({ color: '#d9e8ee', emissive: '#304d5b', emissiveIntensity: 0.22, roughness: 0.24, flatShading: true }));
-    peak.position.set(0, 0.72, 0); peak.rotation.z = -0.13; iceberg.add(peak);
-    const shoulder = new THREE.Mesh(new THREE.IcosahedronGeometry(0.86, 0), new THREE.MeshStandardMaterial({ color: '#a9c3ce', emissive: '#1c3b4c', emissiveIntensity: 0.28, roughness: 0.3, flatShading: true }));
-    shoulder.scale.set(1.15, 0.62, 0.72); shoulder.position.set(0.08, -0.15, 0.02); iceberg.add(shoulder);
-    const submerged = new THREE.Mesh(new THREE.IcosahedronGeometry(1.12, 1), new THREE.MeshStandardMaterial({ color: '#315a70', emissive: '#102d40', emissiveIntensity: 0.35, roughness: 0.42, transparent: true, opacity: 0.92, flatShading: true }));
-    submerged.scale.set(1.28, 1.22, 0.82); submerged.position.set(0.05, -1.18, -0.08); iceberg.add(submerged);
-    iceberg.position.set(5.1, -0.35, -0.3); iceberg.userData.kind = 'titanic-iceberg'; this.add(iceberg);
+    // The ship, iceberg and animated ocean are loaded from the licensed GLTF asset set below.
     makeTitle('A STORY THAT CROSSED THE OCEAN', '500 42px Georgia, serif', '#b7c7ce', 7, 0.42, 1.8, 'overline');
     makeTitle('TITANIC', 'italic 900 300px Georgia, serif', '#f2e4c7', 7.8, 1.8, 0.72, 'main');
     makeTitle('THE LEGEND NEVER SINKS', '600 48px Arial, sans-serif', '#9ebdca', 6.5, 0.48, -0.35, 'subtitle');
@@ -229,6 +194,21 @@ export class MotionRenderer {
     divider.position.set(-3.6, 0.72, 1.25); divider.userData.kind = 'titanic-divider'; this.add(divider);
     const glow = new THREE.PointLight(0x8dbbd0, 0, 16);
     glow.position.set(-2, 2.4, 2.5); glow.userData.kind = 'titanic-light'; this.add(glow);
+
+    loadTitanicAssetScene().then(assets => {
+      if (this.active !== 'titanic' || this.sceneEpoch !== epoch) {
+        assets.dispose();
+        return;
+      }
+      this.titanicAssets = assets;
+      for (const object of [assets.ocean, assets.bow, assets.stern, assets.iceberg]) {
+        object.userData.assetManaged = true;
+        this.add(object);
+      }
+      this.seek(this.currentTime);
+    }).catch(error => {
+      console.error('[Titanic] Could not load cinematic GLTF assets:', error);
+    });
   }
 
   private buildGenesisScene(): void {
@@ -363,9 +343,12 @@ export class MotionRenderer {
   setGeneratedScene(spec: GeneratedSceneSpec): void {
     this.generatedSpec = spec;
     this.active = 'generated';
+    this.sceneEpoch++;
+    this.titanicAssets?.dispose();
+    this.titanicAssets = undefined;
     for (const object of this.objects) {
       this.scene.remove(object);
-      this.disposeObject(object);
+      if (!object.userData.assetManaged) this.disposeObject(object);
     }
     this.objects.length = 0;
     this.buildGeneratedScene(spec);
@@ -436,25 +419,10 @@ export class MotionRenderer {
     const t = clamp(seconds, 0, 30);
     this.currentTime = t;
     this.scene.background = new THREE.Color(this.active === 'generated' && this.generatedSpec ? this.generatedSpec.background : this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : this.active === 'titanic' ? '#020b13' : '#050914');
+    this.scene.fog = this.active === 'titanic' ? new THREE.FogExp2('#020b13', 0.035) : null;
     for (const object of this.objects) {
       const kind = object.userData.kind;
 
-      if (kind === 'titanic-ship-half') {
-        const side = object.userData.side as 'stern' | 'bow';
-        const collision = smoothstep(7.4, 8.5, t);
-        const split = smoothstep(8.0, 10.2, t);
-        const sink = smoothstep(11.5, 18, t);
-        object.position.x = -0.2 + (side === 'stern' ? -0.68 : 0.78) * split;
-        object.position.y = -0.45 + (side === 'stern' ? 0.28 : -0.18) * collision - (side === 'stern' ? 1.15 : 1.75) * sink;
-        object.rotation.z = side === 'stern' ? 0.035 * collision + 0.34 * split + 0.18 * sink : -0.07 * collision - 0.52 * split - 0.42 * sink;
-        object.rotation.y = Math.sin(t * 0.22) * 0.025;
-        object.scale.setScalar(0.92 + 0.08 * smoothstep(1.2, 4.2, t));
-      }
-      if (kind === 'titanic-iceberg') {
-        const approach = smoothstep(5.0, 8.1, t);
-        object.position.x = 5.1 - approach * 1.35;
-        object.rotation.y = Math.sin(t * 0.18) * 0.025;
-      }
       if (kind === 'titanic-title') {
         const mesh = object as THREE.Mesh;
         const layer = object.userData.layer as string;
@@ -464,10 +432,6 @@ export class MotionRenderer {
         (mesh.material as THREE.MeshBasicMaterial).opacity = reveal;
         mesh.scale.setScalar(layer === 'main' ? 0.82 + 0.18 * easeOutCubic((t - start) / (end - start)) : 0.96 + reveal * 0.04);
         mesh.position.x = layer === 'main' ? (1 - reveal) * -0.32 : 0;
-      }
-      if (kind === 'titanic-wave') {
-        const index = Number(object.userData.index ?? 0);
-        object.position.x = Math.sin(t * 0.55 + index * 1.4) * 0.28;
       }
       if (kind === 'titanic-stars') object.rotation.z = t * 0.003;
       if (kind === 'titanic-divider') {
@@ -579,8 +543,22 @@ export class MotionRenderer {
       this.camera.position.set(Math.sin(t * 0.18) * 0.22, Math.sin(t * 0.31) * 0.1, 9.2 - 1.05 * smoothstep(9.4, 13, t));
       this.camera.lookAt(0, 0, 0);
     } else if (this.active === 'titanic') {
-      this.camera.position.set(Math.sin(t * 0.12) * 0.16, Math.sin(t * 0.17) * 0.06, 9.4 - 0.45 * smoothstep(8, 15, t));
-      this.camera.lookAt(0, 0, 0);
+      this.titanicAssets?.update(t);
+      const shots = [
+        { time: 0, position: new THREE.Vector3(0.1, 2.25, 10.8), target: new THREE.Vector3(0, 0.42, 0) },
+        { time: 5.2, position: new THREE.Vector3(2.35, 1.45, 6.3), target: new THREE.Vector3(2.25, 0.34, 0.12) },
+        { time: 8.0, position: new THREE.Vector3(1.55, 1.1, 5.25), target: new THREE.Vector3(2.55, 0.3, 0.12) },
+        { time: 11.5, position: new THREE.Vector3(0.2, 2.1, 10.2), target: new THREE.Vector3(0, 0.28, 0) },
+        { time: 18, position: new THREE.Vector3(-0.2, 2.5, 11.4), target: new THREE.Vector3(0, 0.1, 0) }
+      ];
+      let index = 0;
+      while (index < shots.length - 2 && t > shots[index + 1].time) index++;
+      const a = shots[index];
+      const b = shots[index + 1];
+      const progress = smoothstep(a.time, b.time, t);
+      this.camera.position.lerpVectors(a.position, b.position, progress);
+      const target = a.target.clone().lerp(b.target, progress);
+      this.camera.lookAt(target);
     } else {
       this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
       this.camera.position.y = this.active === 'product' ? Math.sin(t * 0.3) * 0.1 : 0;
@@ -609,7 +587,9 @@ export class MotionRenderer {
   dispose(): void {
     this.titleTexture?.dispose();
     window.removeEventListener('resize', this.resize);
-    for (const object of this.objects) this.disposeObject(object);
+    this.titanicAssets?.dispose();
+    this.titanicAssets = undefined;
+    for (const object of this.objects) if (!object.userData.assetManaged) this.disposeObject(object);
     this.renderer.dispose();
   }
 }
