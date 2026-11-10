@@ -53,6 +53,7 @@ export class MotionRenderer {
     if (id === 'product') this.buildProductScene();
     if (id === 'science') this.buildScienceScene();
     if (id === 'genesis') this.buildGenesisScene();
+    if (id === 'titanic') this.buildTitanicScene();
     if (id === 'generated' && this.generatedSpec) this.buildGeneratedScene(this.generatedSpec);
     this.seek(0);
   }
@@ -147,6 +148,72 @@ export class MotionRenderer {
     orbit.rotation.x = 1.15; orbit.userData.kind = 'orbit'; this.add(orbit);
   }
 
+
+
+  private buildTitanicScene(): void {
+    const makeTitle = (text: string, font: string, color: string, width: number, height: number, y: number, layer: string) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1800; canvas.height = 420;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, 1800, 420);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = font; ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 24;
+        ctx.fillText(text, 900, 210, 1720);
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+      mesh.position.set(0, y, 1.3); mesh.userData.kind = 'titanic-title'; mesh.userData.layer = layer;
+      this.add(mesh);
+    };
+
+    const ocean = new THREE.Mesh(new THREE.PlaneGeometry(22, 8), new THREE.MeshBasicMaterial({ color: '#071827' }));
+    ocean.position.set(0, -2.5, -2.5); this.add(ocean);
+    const random = seededRandom(1912);
+    const starPositions: number[] = [];
+    for (let i = 0; i < 260; i++) starPositions.push((random() - 0.5) * 18, random() * 6 - 0.1, -1.8 - random() * 2);
+    const starGeometry = new THREE.BufferGeometry();
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+    const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: '#b7d7e8', size: 0.025, transparent: true, opacity: 0.7 }));
+    stars.userData.kind = 'titanic-stars'; this.add(stars);
+
+    for (let i = 0; i < 5; i++) {
+      const wave = new THREE.Mesh(new THREE.PlaneGeometry(15 - i * 1.2, 0.012), new THREE.MeshBasicMaterial({ color: '#6c9eb3', transparent: true, opacity: 0.3 }));
+      wave.position.set(0, -1.7 - i * 0.22, -0.8 + i * 0.04);
+      wave.userData.kind = 'titanic-wave'; wave.userData.index = i; this.add(wave);
+    }
+
+    const ship = new THREE.Group();
+    const hullShape = new THREE.Shape();
+    hullShape.moveTo(-3.2, 0.05); hullShape.lineTo(3.2, 0.05); hullShape.lineTo(2.65, -0.48); hullShape.lineTo(-2.7, -0.48); hullShape.closePath();
+    const hull = new THREE.Mesh(new THREE.ExtrudeGeometry(hullShape, { depth: 0.32, bevelEnabled: true, bevelSegments: 2, bevelSize: 0.04, bevelThickness: 0.04 }), new THREE.MeshStandardMaterial({ color: '#111c28', metalness: 0.4, roughness: 0.5 }));
+    hull.position.z = 0.1; ship.add(hull);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(5.1, 0.2, 0.36), new THREE.MeshStandardMaterial({ color: '#d7d2c5' }));
+    deck.position.set(0, 0.2, 0.25); ship.add(deck);
+    for (let i = 0; i < 4; i++) {
+      const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.72, 16), new THREE.MeshStandardMaterial({ color: '#b88b55' }));
+      funnel.position.set(-1.5 + i * 0.9, 0.65, 0.25); ship.add(funnel);
+    }
+    for (let row = 0; row < 2; row++) for (let i = 0; i < 22; i++) {
+      const light = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.035, 0.025), new THREE.MeshBasicMaterial({ color: '#e8c98c' }));
+      light.position.set(-2.3 + i * 0.21, 0.22 + row * 0.13, 0.47); ship.add(light);
+    }
+    ship.position.set(-0.2, -0.45, 0.15); ship.userData.kind = 'titanic-ship'; this.add(ship);
+
+    const iceberg = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ color: '#9ab8c6', emissive: '#19394c', emissiveIntensity: 0.25, roughness: 0.3, flatShading: true }));
+    iceberg.scale.set(0.82, 1.18, 0.52); iceberg.position.set(5, -0.25, -0.3); iceberg.userData.kind = 'titanic-iceberg'; this.add(iceberg);
+
+    makeTitle('A STORY THAT CROSSED THE OCEAN', '500 42px Georgia, serif', '#b7c7ce', 7, 0.42, 1.8, 'overline');
+    makeTitle('TITANIC', 'italic 900 300px Georgia, serif', '#f2e4c7', 7.8, 1.8, 0.72, 'main');
+    makeTitle('THE LEGEND NEVER SINKS', '600 48px Arial, sans-serif', '#9ebdca', 6.5, 0.48, -0.35, 'subtitle');
+    makeTitle('14 APRIL 1912  /  THE NORTH ATLANTIC', '500 30px Arial, sans-serif', '#7895a5', 6.8, 0.36, -1.15, 'date');
+
+    const divider = new THREE.Mesh(new THREE.PlaneGeometry(0.025, 1.2), new THREE.MeshBasicMaterial({ color: '#c6a879', transparent: true, opacity: 0 }));
+    divider.position.set(-3.6, 0.72, 1.25); divider.userData.kind = 'titanic-divider'; this.add(divider);
+    const glow = new THREE.PointLight(0x8dbbd0, 0, 16);
+    glow.position.set(-2, 2.4, 2.5); glow.userData.kind = 'titanic-light'; this.add(glow);
+  }
 
   private buildGenesisScene(): void {
     const core = new THREE.Group();
@@ -352,9 +419,42 @@ export class MotionRenderer {
   seek(seconds: number): void {
     const t = clamp(seconds, 0, 30);
     this.currentTime = t;
-    this.scene.background = new THREE.Color(this.active === 'generated' && this.generatedSpec ? this.generatedSpec.background : this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : '#050914');
+    this.scene.background = new THREE.Color(this.active === 'generated' && this.generatedSpec ? this.generatedSpec.background : this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : this.active === 'genesis' ? '#030711' : this.active === 'titanic' ? '#020b13' : '#050914');
     for (const object of this.objects) {
       const kind = object.userData.kind;
+
+      if (kind === 'titanic-ship') {
+        const reveal = smoothstep(1.2, 4.2, t);
+        object.position.x = -0.65 + reveal * 0.45 + Math.sin(t * 0.38) * 0.035;
+        object.rotation.y = Math.sin(t * 0.22) * 0.025;
+        object.scale.setScalar(0.78 + reveal * 0.22);
+      }
+      if (kind === 'titanic-iceberg') {
+        const reveal = smoothstep(5.2, 8.4, t);
+        object.position.x = 5.4 - reveal * 0.55;
+        object.rotation.y = Math.sin(t * 0.18) * 0.05;
+      }
+      if (kind === 'titanic-title') {
+        const mesh = object as THREE.Mesh;
+        const layer = object.userData.layer as string;
+        const timing: Record<string, [number, number]> = { overline: [0.45, 2.1], main: [2.1, 5.1], subtitle: [4.2, 6.8], date: [6.2, 8.2] };
+        const [start, end] = timing[layer] ?? [0, 1];
+        const reveal = smoothstep(start, end, t) * (1 - smoothstep(16.1, 18, t));
+        (mesh.material as THREE.MeshBasicMaterial).opacity = reveal;
+        mesh.scale.setScalar(layer === 'main' ? 0.82 + 0.18 * easeOutCubic((t - start) / (end - start)) : 0.96 + reveal * 0.04);
+        mesh.position.x = layer === 'main' ? (1 - reveal) * -0.32 : 0;
+      }
+      if (kind === 'titanic-wave') {
+        const index = Number(object.userData.index ?? 0);
+        object.position.x = Math.sin(t * 0.55 + index * 1.4) * 0.28;
+      }
+      if (kind === 'titanic-stars') object.rotation.z = t * 0.003;
+      if (kind === 'titanic-divider') {
+        const reveal = smoothstep(3.5, 5.2, t);
+        (object as THREE.Mesh).material && (((object as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = reveal);
+        object.scale.y = reveal;
+      }
+      if (kind === 'titanic-light') (object as THREE.PointLight).intensity = 8 * smoothstep(2, 5, t) * (1 - 0.35 * smoothstep(15, 18, t));
       if (kind === 'generated-object') {
         const animations = object.userData.animations as SceneAnimation[];
         for (const animation of animations) {
@@ -456,6 +556,9 @@ export class MotionRenderer {
       this.camera.lookAt(0, 0, 0);
     } else if (this.active === 'genesis') {
       this.camera.position.set(Math.sin(t * 0.18) * 0.22, Math.sin(t * 0.31) * 0.1, 9.2 - 1.05 * smoothstep(9.4, 13, t));
+      this.camera.lookAt(0, 0, 0);
+    } else if (this.active === 'titanic') {
+      this.camera.position.set(Math.sin(t * 0.12) * 0.16, Math.sin(t * 0.17) * 0.06, 9.4 - 0.45 * smoothstep(8, 15, t));
       this.camera.lookAt(0, 0, 0);
     } else {
       this.camera.position.x = this.active === 'science' ? Math.sin(t * 0.16) * 0.18 : Math.sin(t * 0.22) * 0.12;
