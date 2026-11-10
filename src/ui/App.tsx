@@ -11,7 +11,7 @@ import { upsertKeyframe, removeKeyframe, type Keyframe } from '../engine/keyfram
 import { exportMp4 } from '../engine/exporter';
 import { discoverLmStudioModels, generateSceneFromPrompt } from '../engine/lmStudio';
 import { generateProceduralScene } from '../engine/proceduralDirector';
-import type { GeneratedSceneSpec } from '../engine/generatedScene';
+import { validateGeneratedScene, type GeneratedSceneSpec } from '../engine/generatedScene';
 
 const projects: { id: SceneId; title: string; subtitle: string; duration: number; category: string; number: string }[] = [
   { id: 'type', title: 'FUTURE', subtitle: 'Kinetic typography', duration: 15, category: 'Typography', number: '01' },
@@ -24,40 +24,79 @@ const projects: { id: SceneId; title: string; subtitle: string; duration: number
 
 const initialPrompt = 'Create a cinematic 18-second title sequence for TITANIC. Midnight-blue North Atlantic, detailed 1912 ocean liner, distant iceberg, cold moonlight, restrained gold accents. Elegant serif title, dramatic reveal, slow camera approach, 16:9.';
 
+type StudioDraft = {
+  projectName: string;
+  active: SceneId;
+  prompt: string;
+  directorMode: 'procedural' | 'ai';
+  lmBaseUrl: string;
+  lmModel: string;
+  titleText: string;
+  titleColor: string;
+  scaleKeys: Keyframe[];
+  generatedScene: GeneratedSceneSpec | null;
+};
+
+function readDraft(): Partial<StudioDraft> {
+  try {
+    const raw = localStorage.getItem('ai-motion-studio:draft');
+    if (!raw) return {};
+    const value = JSON.parse(raw) as Record<string, unknown>;
+    const activeIds: SceneId[] = ['type', 'product', 'science', 'genesis', 'titanic', 'generated'];
+    let generatedScene: GeneratedSceneSpec | null = null;
+    if (value.generatedScene) generatedScene = validateGeneratedScene(value.generatedScene);
+    return {
+      projectName: typeof value.projectName === 'string' ? value.projectName.slice(0, 80) : undefined,
+      active: activeIds.includes(value.active as SceneId) ? value.active as SceneId : undefined,
+      prompt: typeof value.prompt === 'string' ? value.prompt.slice(0, 2000) : undefined,
+      directorMode: value.directorMode === 'ai' ? 'ai' : value.directorMode === 'procedural' ? 'procedural' : undefined,
+      lmBaseUrl: typeof value.lmBaseUrl === 'string' ? value.lmBaseUrl : undefined,
+      lmModel: typeof value.lmModel === 'string' ? value.lmModel : undefined,
+      titleText: typeof value.titleText === 'string' ? value.titleText.slice(0, 40) : undefined,
+      titleColor: typeof value.titleColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.titleColor) ? value.titleColor : undefined,
+      scaleKeys: Array.isArray(value.scaleKeys) ? value.scaleKeys as Keyframe[] : undefined,
+      generatedScene
+    };
+  } catch {
+    return {};
+  }
+}
+
 export default function App() {
+  const [draft] = useState<Partial<StudioDraft>>(readDraft);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rendererRef = useRef<MotionRenderer>();
+  const rendererRef = useRef<MotionRenderer | undefined>(undefined);
   const audioRef = useRef(new MotionAudio());
   const exportAbortRef = useRef<AbortController | null>(null);
 
-  const [active, setActive] = useState<SceneId>('type');
+  const [active, setActive] = useState<SceneId>(draft.active ?? 'type');
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [sound, setSound] = useState(false);
   const [ready, setReady] = useState(false);
-  const [titleText, setTitleText] = useState('FUTURE');
-  const [titleColor, setTitleColor] = useState('#f1eee7');
+  const [titleText, setTitleText] = useState(draft.titleText ?? 'FUTURE');
+  const [titleColor, setTitleColor] = useState(draft.titleColor ?? '#f1eee7');
   const [scaleKeys, setScaleKeys] = useState<Keyframe[]>([
     { id: 'title-start', time: 0, value: 0.82 },
     { id: 'title-full', time: 1.2, value: 1 }
   ]);
   const [selectedKey, setSelectedKey] = useState('title-full');
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [directorMode, setDirectorMode] = useState<'procedural' | 'ai'>('procedural');
-  const [lmBaseUrl, setLmBaseUrl] = useState('http://localhost:1234/v1');
-  const [lmModel, setLmModel] = useState('');
+  const [prompt, setPrompt] = useState(draft.prompt ?? initialPrompt);
+  const [directorMode, setDirectorMode] = useState<'procedural' | 'ai'>(draft.directorMode ?? 'procedural');
+  const [lmBaseUrl, setLmBaseUrl] = useState(draft.lmBaseUrl ?? 'http://localhost:1234/v1');
+  const [lmModel, setLmModel] = useState(draft.lmModel ?? '');
   const [lmStatus, setLmStatus] = useState('Not connected');
   const [connecting, setConnecting] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generatedScene, setGeneratedScene] = useState<GeneratedSceneSpec | null>(null);
+  const [generatedScene, setGeneratedScene] = useState<GeneratedSceneSpec | null>(draft.generatedScene ?? null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState('');
   const [briefOpen, setBriefOpen] = useState(true);
-  const [projectName, setProjectName] = useState('Untitled project');
-  const [savedAt, setSavedAt] = useState('All changes saved');
+  const [projectName, setProjectName] = useState(draft.projectName ?? 'Untitled project');
+  const [savedAt, setSavedAt] = useState(Object.keys(draft).length ? 'Local draft restored' : 'New local project');
 
   const baseProject = projects.find(project => project.id === active) ?? projects[0];
   const project = active === 'generated' && generatedScene
