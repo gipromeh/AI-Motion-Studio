@@ -22,9 +22,9 @@ function inferDuration(prompt: string): number {
 
 function inferTitle(prompt: string): string {
   const explicitPatterns = [
-    /(?:brand called|brand name|название бренда|бренд называется)\s*[:"«“]?\s*[«“"]?([^»”"’'\n.,]{2,40})/i,
     /(?:title|заголовок|надпись|текст)\s*(?:reads|:|будет|—|-)\s*[«“"]?([^»”"\n]{2,40})[»”"]?/i,
-    /(?:reads|надпись)\s*[«“"]([^»”"]{2,40})[»”"]/i
+    /(?:reads|надпись)\s*[«“"]([^»”"]{2,40})[»”"]/i,
+    /(?:brand called|brand name|название бренда|бренд называется)\s*[:"«“]?\s*[«“"]?([^»”"’'\n.,]{2,40})/i
   ];
   const found = explicitPatterns.map(pattern => prompt.match(pattern)?.[1]?.trim()).find(Boolean);
   if (found) return found.replace(/[.!?]+$/, '').toUpperCase().slice(0, 32);
