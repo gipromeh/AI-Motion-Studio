@@ -42,3 +42,17 @@ Requirements:
 - A secure context (HTTPS or localhost).
 - This first implementation exports video only; synchronized audio is a follow-up milestone.
 - The first implementation buffers the completed MP4 in memory. Keep test exports short on memory-constrained devices.
+
+
+## Prompt-to-scene generation (MVP)
+
+The editor can ask a local LM Studio model to generate a structured 3D composition from a natural-language brief.
+
+1. Install and open LM Studio, download a capable instruct model, and load it.
+2. Start the Local Server on port 1234. Enable CORS in the server settings.
+3. Run this app on the same computer with `npm install` and `npm run dev`, then open the local Vite URL.
+4. In **AI Director**, connect to `http://localhost:1234/v1` (the model ID is discovered from the server) and click **Generate scene**.
+
+The model returns a validated JSON scene description, not executable code. The renderer currently supports spheres, boxes, toruses, cylinders, text planes, per-object transforms/materials, absolute-time property animation, and a linear camera move. Generated scenes remain deterministic and can be scrubbed or exported with the existing MP4 pipeline.
+
+The GitHub Pages build is useful for previewing the editor, but a browser on an iPhone cannot use `localhost:1234` to reach LM Studio running on a separate PC. For phone-to-PC generation, the LM Studio endpoint needs a reachable HTTPS address and suitable CORS/network configuration. Do not expose an unauthenticated model server directly to the public internet.
