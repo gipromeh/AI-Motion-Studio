@@ -303,7 +303,7 @@ export default function App() {
       <header className="studio-topbar">
         <div className="studio-brand">
           <div className="brand-symbol"><Activity size={17}/></div>
-          <div><strong>FRAME<span>/</span>FORGE</strong><small>AI MOTION STUDIO</small></div>
+          <div><strong>AI<span>/</span>MOTION</strong><small>AI MOTION STUDIO</small></div>
         </div>
         <div className="project-title-field">
           <span>PROJECT</span>
@@ -344,7 +344,7 @@ export default function App() {
             <div className="engine-line"><span>Director</span><b>{directorMode === 'ai' ? lmStatus : 'Offline'}</b></div>
             <div className="engine-line"><span>Output</span><b>H.264 · 1080p</b></div>
           </div>
-          <div className="sidebar-foot"><span>FRAME/FORGE</span><span>BUILD 0.2</span></div>
+          <div className="sidebar-foot"><span>AI MOTION STUDIO</span><span>BUILD 0.2</span></div>
         </aside>
 
         <section className="studio-main">
