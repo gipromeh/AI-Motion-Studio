@@ -51,9 +51,10 @@ export function validateGeneratedScene(value: unknown): GeneratedSceneSpec {
   if (typeof value.title !== 'string' || !value.title.trim() || value.title.length > 80) throw new Error('Scene title is missing or too long.');
   if (typeof value.description !== 'string' || value.description.length > 240) throw new Error('Scene description is invalid.');
   if (!finiteIn(value.duration, 5, 30)) throw new Error('Scene duration must be between 5 and 30 seconds.');
+  const duration = value.duration;
   if (!isHex(value.background)) throw new Error('Scene background must be a six-digit hex color.');
   if (!isRecord(value.camera) || !isVector(value.camera.from) || !isVector(value.camera.to) ||
-      !finiteIn(value.camera.start, 0, value.duration) || !finiteIn(value.camera.end, 0, value.duration) ||
+      !finiteIn(value.camera.start, 0, duration) || !finiteIn(value.camera.end, 0, duration) ||
       value.camera.end <= value.camera.start) throw new Error('Camera animation is invalid.');
   if (!Array.isArray(value.objects) || value.objects.length < 1 || value.objects.length > 24) {
     throw new Error('Scene must contain between 1 and 24 objects.');
@@ -78,7 +79,7 @@ export function validateGeneratedScene(value: unknown): GeneratedSceneSpec {
     for (const animation of animations) {
       if (!isRecord(animation) || !properties.includes(animation.property as AnimatedProperty) ||
           !finiteIn(animation.from, -20, 20) || !finiteIn(animation.to, -20, 20) ||
-          !finiteIn(animation.start, 0, value.duration) || !finiteIn(animation.end, 0, value.duration) ||
+          !finiteIn(animation.start, 0, duration) || !finiteIn(animation.end, 0, duration) ||
           animation.end <= animation.start ||
           (animation.easing !== undefined && !['linear', 'easeInOut', 'easeOut'].includes(String(animation.easing)))) {
         throw new Error('An object animation is invalid.');
@@ -102,7 +103,7 @@ export function validateGeneratedScene(value: unknown): GeneratedSceneSpec {
   return {
     title: value.title.trim(),
     description: value.description.trim(),
-    duration: value.duration,
+    duration,
     background: value.background,
     camera: {
       from: value.camera.from,
