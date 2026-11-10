@@ -9,8 +9,6 @@ export class MotionRenderer {
   private readonly camera = new THREE.PerspectiveCamera(38, 16 / 9, 0.1, 100);
   private readonly objects: THREE.Object3D[] = [];
   private active: SceneId = 'type';
-  private width = 1280;
-  private height = 720;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -30,9 +28,9 @@ export class MotionRenderer {
 
   private resize = (): void => {
     const rect = this.canvas.getBoundingClientRect();
-    this.width = Math.max(1, Math.floor(rect.width)); this.height = Math.max(1, Math.floor(rect.height));
-    this.renderer.setSize(this.width, this.height, false);
-    this.camera.aspect = this.width / this.height; this.camera.updateProjectionMatrix();
+    this.renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)), false);
+    this.camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+    this.camera.updateProjectionMatrix();
   };
 
   setScene(id: SceneId): void {
@@ -46,37 +44,76 @@ export class MotionRenderer {
   }
 
   private add(object: THREE.Object3D): void { this.scene.add(object); this.objects.push(object); }
-  private disposeObject(object: THREE.Object3D): void { object.traverse(child => { const mesh = child as THREE.Mesh; mesh.geometry?.dispose(); if (Array.isArray(mesh.material)) mesh.material.forEach(m => m.dispose()); else mesh.material?.dispose(); }); }
+
+  private disposeObject(object: THREE.Object3D): void {
+    object.traverse(child => {
+      const mesh = child as THREE.Mesh;
+      mesh.geometry?.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : mesh.material ? [mesh.material] : [];
+      for (const material of materials) {
+        const textured = material as THREE.Material & { map?: THREE.Texture | null };
+        textured.map?.dispose();
+        material.dispose();
+      }
+    });
+  }
 
   private buildTypeScene(): void {
-    const group = new THREE.Group();
     const bars = new THREE.Group();
     for (let i = 0; i < 9; i++) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.3 + (i % 3) * 0.25, 0.12), new THREE.MeshStandardMaterial({ color: i % 3 === 0 ? '#f47b55' : '#e9e5dc', roughness: 0.35, metalness: 0.25 }));
-      mesh.position.set((i - 4) * 0.42, 0, 0); bars.add(mesh);
+      mesh.position.set((i - 4) * 0.42, -0.7, -0.2); bars.add(mesh);
     }
-    group.add(bars); group.userData.kind = 'bars'; this.add(group);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.018, 8, 160), new THREE.MeshBasicMaterial({ color: '#f47b55' })); ring.rotation.x = 0.7; ring.position.z = -0.6; ring.userData.kind = 'ring'; this.add(ring);
+    bars.userData.kind = 'bars'; this.add(bars);
+
+    const titleCanvas = document.createElement('canvas');
+    titleCanvas.width = 1600; titleCanvas.height = 360;
+    const ctx = titleCanvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, titleCanvas.width, titleCanvas.height);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '900 250px Arial, Helvetica, sans-serif';
+      ctx.fillStyle = '#f1eee7'; ctx.fillText('FUTURE', 800, 176);
+      ctx.fillStyle = '#f47b55'; ctx.fillRect(180, 310, 1240, 9);
+    }
+    const texture = new THREE.CanvasTexture(titleCanvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const title = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 1.485), new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
+    title.position.set(0, 0.55, 0.55); title.userData.kind = 'title'; this.add(title);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.018, 8, 160), new THREE.MeshBasicMaterial({ color: '#f47b55' }));
+    ring.rotation.x = 0.7; ring.position.z = -0.6; ring.userData.kind = 'ring'; this.add(ring);
   }
 
   private buildProductScene(): void {
     const group = new THREE.Group();
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.95, 2.9, 96, 1, false), new THREE.MeshPhysicalMaterial({ color: '#c5cbd4', metalness: 0.92, roughness: 0.19, clearcoat: 1, clearcoatRoughness: 0.08 }));
     body.rotation.z = Math.PI / 2; group.add(body);
-    for (let i = 0; i < 7; i++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.84 + i * 0.012, 0.035, 12, 96), new THREE.MeshStandardMaterial({ color: i % 2 ? '#aeb8c8' : '#f47b55', metalness: 0.85, roughness: 0.22 })); ring.rotation.y = Math.PI / 2; ring.position.x = -1.1 + i * 0.36; group.add(ring); }
-    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.12, 96), new THREE.MeshPhysicalMaterial({ color: '#7894d6', transmission: 0.72, thickness: 0.5, roughness: 0.08, metalness: 0.05 })); glass.rotation.z = Math.PI / 2; glass.position.x = 1.48; group.add(glass);
+    for (let i = 0; i < 7; i++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.84 + i * 0.012, 0.035, 12, 96), new THREE.MeshStandardMaterial({ color: i % 2 ? '#aeb8c8' : '#f47b55', metalness: 0.85, roughness: 0.22 }));
+      ring.rotation.y = Math.PI / 2; ring.position.x = -1.1 + i * 0.36; group.add(ring);
+    }
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.12, 96), new THREE.MeshPhysicalMaterial({ color: '#7894d6', transmission: 0.72, thickness: 0.5, roughness: 0.08, metalness: 0.05 }));
+    glass.rotation.z = Math.PI / 2; glass.position.x = 1.48; group.add(glass);
     group.userData.kind = 'product'; this.add(group);
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.012, 8, 128), new THREE.MeshBasicMaterial({ color: '#627ed7', transparent: true, opacity: 0.7 })); halo.rotation.x = 1.15; halo.position.z = -0.5; this.add(halo);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.012, 8, 128), new THREE.MeshBasicMaterial({ color: '#627ed7', transparent: true, opacity: 0.7 }));
+    halo.rotation.x = 1.15; halo.position.z = -0.5; this.add(halo);
   }
 
   private buildScienceScene(): void {
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(1.65, 96, 64), new THREE.MeshStandardMaterial({ color: '#245a91', roughness: 0.78, metalness: 0.05, emissive: '#071a35', emissiveIntensity: 0.4 })); earth.userData.kind = 'earth'; this.add(earth);
-    const cloud = new THREE.Mesh(new THREE.SphereGeometry(1.69, 96, 64), new THREE.MeshBasicMaterial({ color: '#8ab9ec', transparent: true, opacity: 0.12, wireframe: true })); cloud.userData.kind = 'cloud'; this.add(cloud);
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(1.65, 96, 64), new THREE.MeshStandardMaterial({ color: '#245a91', roughness: 0.78, metalness: 0.05, emissive: '#071a35', emissiveIntensity: 0.4 }));
+    earth.userData.kind = 'earth'; this.add(earth);
+    const cloud = new THREE.Mesh(new THREE.SphereGeometry(1.69, 96, 64), new THREE.MeshBasicMaterial({ color: '#8ab9ec', transparent: true, opacity: 0.12, wireframe: true }));
+    cloud.userData.kind = 'cloud'; this.add(cloud);
     const random = seededRandom(42); const vertices: number[] = [];
-    for (let i = 0; i < 1100; i++) { const u = random() * 2 - 1, a = random() * Math.PI * 2, r = 4.5 + random() * 8, s = Math.sqrt(1 - u * u); vertices.push(Math.cos(a) * s * r, u * r * 0.65, Math.sin(a) * s * r - 2); }
+    for (let i = 0; i < 1100; i++) {
+      const u = random() * 2 - 1, a = random() * Math.PI * 2, r = 4.5 + random() * 8, s = Math.sqrt(1 - u * u);
+      vertices.push(Math.cos(a) * s * r, u * r * 0.65, Math.sin(a) * s * r - 2);
+    }
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    const stars = new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#d9e5ff', size: 0.025, sizeAttenuation: true })); this.add(stars);
-    const orbit = new THREE.Mesh(new THREE.TorusGeometry(2.35, 0.012, 8, 180), new THREE.MeshBasicMaterial({ color: '#f47b55' })); orbit.rotation.x = 1.15; orbit.userData.kind = 'orbit'; this.add(orbit);
+    this.add(new THREE.Points(geometry, new THREE.PointsMaterial({ color: '#d9e5ff', size: 0.025, sizeAttenuation: true })));
+    const orbit = new THREE.Mesh(new THREE.TorusGeometry(2.35, 0.012, 8, 180), new THREE.MeshBasicMaterial({ color: '#f47b55', transparent: true }));
+    orbit.rotation.x = 1.15; orbit.userData.kind = 'orbit'; this.add(orbit);
   }
 
   seek(seconds: number): void {
@@ -84,7 +121,18 @@ export class MotionRenderer {
     this.scene.background = new THREE.Color(this.active === 'type' ? '#101116' : this.active === 'product' ? '#090d16' : '#050914');
     for (const object of this.objects) {
       const kind = object.userData.kind;
-      if (kind === 'bars') { const group = object as THREE.Group; group.children.forEach((child, i) => { const reveal = spring(t - 0.35 - i * 0.09, 190, 25); child.scale.y = 0.05 + reveal * (1.1 + (i % 3) * 0.25); child.position.y = -0.5 + child.scale.y * 0.5; }); group.rotation.y = Math.sin(t * 0.55) * 0.12; }
+      if (kind === 'bars') {
+        const group = object as THREE.Group;
+        group.children.forEach((child, i) => { const reveal = spring(t - 0.35 - i * 0.09, 190, 25); child.scale.y = 0.05 + reveal * (1.1 + (i % 3) * 0.25); child.position.y = -0.7 + child.scale.y * 0.5; });
+        group.rotation.y = Math.sin(t * 0.55) * 0.12;
+      }
+      if (kind === 'title') {
+        const mesh = object as THREE.Mesh;
+        const reveal = spring(t - 0.25, 210, 25);
+        mesh.scale.set(0.82 + reveal * 0.18, 0.82 + reveal * 0.18, 1);
+        (mesh.material as THREE.MeshBasicMaterial).opacity = clamp(reveal);
+        mesh.position.y = 0.3 + reveal * 0.25;
+      }
       if (kind === 'ring') { object.rotation.z = t * 0.18; (object as THREE.Mesh).scale.setScalar(0.65 + easeOutCubic(t / 2) * 0.35); }
       if (kind === 'product') { object.rotation.set(0.18 + Math.sin(t * 0.38) * 0.08, t * 0.42, -0.12 + Math.sin(t * 0.6) * 0.035); object.position.y = Math.sin(t * 0.8) * 0.12; }
       if (kind === 'earth' || kind === 'cloud') { object.rotation.y = t * (kind === 'earth' ? 0.12 : 0.15); const reveal = smoothstep(0, 2.2, t); object.scale.setScalar(0.15 + reveal * 0.85); }
@@ -96,5 +144,9 @@ export class MotionRenderer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  dispose(): void { window.removeEventListener('resize', this.resize); for (const object of this.objects) this.disposeObject(object); this.renderer.dispose(); }
+  dispose(): void {
+    window.removeEventListener('resize', this.resize);
+    for (const object of this.objects) this.disposeObject(object);
+    this.renderer.dispose();
+  }
 }
