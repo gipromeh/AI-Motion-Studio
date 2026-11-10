@@ -13,7 +13,7 @@ A scene is a deterministic function of absolute time. seek(t) derives every anim
 - Export: PNG now; WebCodecs/server FFmpeg adapter planned.
 
 ## Keyframe model
-A keyframe has a stable ID, time in seconds and numeric value. Tracks are sorted at evaluation time; interpolation is linear with endpoint hold. Editing a keyframe at an occupied timestamp replaces the previous key at that timestamp.
+A keyframe has a stable ID, time in seconds and numeric value. Tracks are sorted at evaluation time; interpolation is linear with endpoint hold. Editing a keyframe at an occupied timestamp replaces the previous key at that timestamp. Moving an existing keyframe also enforces timestamp uniqueness.
 
 ## Constraints
 - No API keys in the browser bundle.
