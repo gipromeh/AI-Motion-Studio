@@ -19,3 +19,8 @@ A keyframe has a stable ID, time in seconds and numeric value. Tracks are sorted
 - No API keys in the browser bundle.
 - LM Studio must be reached through an explicit local bridge/proxy; browser CORS and mixed-content restrictions must be handled deliberately.
 - GitHub Pages is static hosting, not a server runtime.
+
+
+## Procedural Director
+
+The offline director is a pure prompt-to-scene adapter. It maps a bounded natural-language vocabulary to the existing validated `GeneratedSceneSpec` contract. It does not access the network or execute generated code. The AI and procedural directors are interchangeable scene providers; rendering, deterministic seek, and export remain provider-agnostic.

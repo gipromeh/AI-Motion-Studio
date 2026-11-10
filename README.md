@@ -56,3 +56,10 @@ The editor can ask a local LM Studio model to generate a structured 3D compositi
 The model returns a validated JSON scene description, not executable code. The renderer currently supports spheres, boxes, toruses, cylinders, text planes, per-object transforms/materials, absolute-time property animation, and a linear camera move. Generated scenes remain deterministic and can be scrubbed or exported with the existing MP4 pipeline.
 
 The GitHub Pages build is useful for previewing the editor, but a browser on an iPhone cannot use `localhost:1234` to reach LM Studio running on a separate PC. For phone-to-PC generation, the LM Studio endpoint needs a reachable HTTPS address and suitable CORS/network configuration. Do not expose an unauthenticated model server directly to the public internet.
+
+
+## Offline Procedural Director
+
+The editor defaults to **Procedural Director**, which creates a validated scene locally in the browser. It does not call an LLM, require LM Studio, or make a network request. It recognizes common English and Russian descriptions for product objects, orbital compositions, colors, duration, camera push-in, and title text, then builds the same `GeneratedSceneSpec` consumed by the Three.js renderer. Generated scenes remain seekable and use the existing MP4 export pipeline.
+
+Switch to **AI Director** to use the LM Studio prompt-to-scene provider. Both modes share the same scene renderer and export path. Procedural generation is deterministic and rule-based; it is not an open-ended language model and only interprets the supported prompt vocabulary.
