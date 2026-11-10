@@ -158,6 +158,7 @@ export class MotionRenderer {
 
 
   private buildTitanicScene(): void {
+    const epoch = this.sceneEpoch;
     const makeTitle = (text: string, font: string, color: string, width: number, height: number, y: number, layer: string) => {
       const canvas = document.createElement('canvas');
       canvas.width = 1800; canvas.height = 420;
@@ -342,9 +343,12 @@ export class MotionRenderer {
   setGeneratedScene(spec: GeneratedSceneSpec): void {
     this.generatedSpec = spec;
     this.active = 'generated';
+    this.sceneEpoch++;
+    this.titanicAssets?.dispose();
+    this.titanicAssets = undefined;
     for (const object of this.objects) {
       this.scene.remove(object);
-      this.disposeObject(object);
+      if (!object.userData.assetManaged) this.disposeObject(object);
     }
     this.objects.length = 0;
     this.buildGeneratedScene(spec);
