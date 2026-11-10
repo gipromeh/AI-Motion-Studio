@@ -5,12 +5,15 @@ import { MotionAudio } from '../engine/audio';
 import type { SceneId } from '../engine/scene';
 import { upsertKeyframe, removeKeyframe, type Keyframe } from '../engine/keyframes';
 import { exportMp4 } from '../engine/exporter';
+import { discoverLmStudioModels, generateSceneFromPrompt } from '../engine/lmStudio';
+import type { GeneratedSceneSpec } from '../engine/generatedScene';
 
 const projects: { id: SceneId; number: string; title: string; subtitle: string; duration: number; tag: string }[] = [
   { id: 'type', number: '01', title: 'FUTURE / Kinetic type', subtitle: 'Typographic system · kinetic composition', duration: 15, tag: '2D / 3D' },
   { id: 'product', number: '02', title: 'OPTIC / Product film', subtitle: 'Precision object · studio lighting', duration: 20, tag: 'PRODUCT CGI' },
   { id: 'science', number: '03', title: 'ORBIT / Science film', subtitle: 'Earth · orbital mechanics · deep space', duration: 30, tag: 'SCIENCE' },
   { id: 'genesis', number: '04', title: 'NEON GENESIS / Digital universe', subtitle: 'Particle birth · energy core · kinetic title', duration: 15, tag: 'CINEMATIC CGI' },
+  { id: 'generated', number: 'AI', title: 'AI SCENE / Prompt generated', subtitle: 'Generated from your brief · editable 3D', duration: 15, tag: 'AI DIRECTOR' },
 ];
 
 export default function App() {
@@ -29,11 +32,28 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState('');
+  const [prompt, setPrompt] = useState('Create a 15-second cinematic product film. A precision glass lens floats in the center, three luminous metal rings orbit around it, the camera slowly pushes in, and the final title reads OPTICS 2030.');
+  const [lmBaseUrl, setLmBaseUrl] = useState('http://localhost:1234/v1');
+  const [lmModel, setLmModel] = useState('');
+  const [lmStatus, setLmStatus] = useState('NOT CONNECTED');
+  const [connecting, setConnecting] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [aiNotice, setAiNotice] = useState('');
+  const [generatedScene, setGeneratedScene] = useState<GeneratedSceneSpec | null>(null);
   const exportAbortRef = useRef<AbortController | null>(null);
-  const project = projects.find(p => p.id === active)!;
+  const baseProject = projects.find(p => p.id === active)!;
+  const project = active === 'generated' && generatedScene
+    ? { ...baseProject, title: generatedScene.title, subtitle: generatedScene.description, duration: generatedScene.duration }
+    : baseProject;
 
   useEffect(() => { if (!canvasRef.current) return; const renderer = new MotionRenderer(canvasRef.current); rendererRef.current = renderer; setReady(true); return () => { renderer.dispose(); rendererRef.current = undefined; audioRef.current.dispose(); }; }, []);
-  useEffect(() => { rendererRef.current?.setScene(active); setTime(0); setPlaying(false); }, [active]);
+  useEffect(() => {
+    if (active === 'generated' && generatedScene) rendererRef.current?.setGeneratedScene(generatedScene);
+    else rendererRef.current?.setScene(active);
+    setTime(0);
+    setPlaying(false);
+  }, [active, generatedScene]);
   useEffect(() => { rendererRef.current?.setTitleText(titleText, titleColor); }, [titleText, titleColor]);
   useEffect(() => { rendererRef.current?.setTitleScaleKeys(scaleKeys); }, [scaleKeys]);
   useEffect(() => { if (!playing) return; let frame = 0; let last = performance.now(); let current = time; const tick = (now: number) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; current += dt; if (current >= project.duration) { current = project.duration; setPlaying(false); } rendererRef.current?.seek(current); setTime(current); if (current < project.duration) frame = requestAnimationFrame(tick); }; frame = requestAnimationFrame(tick); return () => cancelAnimationFrame(frame); }, [playing, active, project.duration]);
@@ -76,13 +96,66 @@ export default function App() {
       setExporting(false);
     }
   };
+
+  const handleConnectLmStudio = async () => {
+    setConnecting(true);
+    setAiError('');
+    setAiNotice('');
+    try {
+      const models = await discoverLmStudioModels(lmBaseUrl);
+      setLmModel(models[0].id);
+      setLmStatus('CONNECTED · ' + models.length + ' MODEL' + (models.length === 1 ? '' : 'S'));
+      setAiNotice('Connected. Loaded model: ' + models[0].id);
+    } catch (error) {
+      setLmStatus('CONNECTION FAILED');
+      setAiError(error instanceof Error ? error.message : 'Could not connect to LM Studio.');
+    } finally { setConnecting(false); }
+  };
+
+  const handleGenerateScene = async () => {
+    setGenerating(true);
+    setAiError('');
+    setAiNotice('');
+    try {
+      let model = lmModel.trim();
+      if (!model) {
+        const models = await discoverLmStudioModels(lmBaseUrl);
+        model = models[0].id;
+        setLmModel(model);
+        setLmStatus('CONNECTED · ' + model);
+      }
+      const result = await generateSceneFromPrompt({ baseUrl: lmBaseUrl, model, prompt });
+      setGeneratedScene(result);
+      setActive('generated');
+      setTime(0);
+      setPlaying(false);
+      setAiNotice('Scene generated: ' + result.objects.length + ' objects · ' + result.duration + ' seconds. You can revise the brief and generate again.');
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'Scene generation failed.');
+    } finally { setGenerating(false); }
+  };
+
   const format = (n: number) => `${Math.floor(n / 60).toString().padStart(2, '0')}:${(n % 60).toFixed(2).padStart(5, '0')}`;
 
   return <main className="app-shell">
     <header className="topbar"><div className="brand"><div className="brand-mark"><Activity size={18}/></div><div><div className="brand-name">MOTION<span> / </span>STUDIO</div><div className="brand-version">BROWSER ENGINE <i/> BUILD 0.1.0</div></div></div><div className="top-center"><span className="live-dot"/> LOCAL PREVIEW ENGINE <span className="top-separator">/</span> WEBGL</div><div className="top-actions"><button className="icon-button" title="Settings"><Settings2 size={17}/></button><button className="help-button"><CircleHelp size={15}/> Help</button><div className="avatar">AM</div></div></header>
-    <section className="workspace"><aside className="sidebar"><div className="side-heading">WORKSPACE <button className="tiny-icon"><Plus size={14}/></button></div><div className="workspace-label"><div className="folder-icon">▰</div><span>Untitled Studio</span><span className="chevron">⌄</span></div><div className="side-heading projects-heading">PROJECTS <span className="count">04</span></div><div className="project-list">{projects.map(p => <button key={p.id} onClick={() => setActive(p.id)} disabled={exporting} className={`project-item ${active === p.id ? 'selected' : ''}`}><span className="project-number">{p.number}</span><span className="project-copy"><strong>{p.title}</strong><small>{p.subtitle}</small></span><span className="project-state">{active === p.id ? '●' : '○'}</span></button>)}</div><div className="sidebar-bottom"><div className="side-heading">PIPELINE STATUS</div><div className="pipeline-row"><span className="pipeline-indicator"/>WebGL renderer <span className="status-ok">READY</span></div><div className="pipeline-row"><span className="pipeline-indicator muted"/>AI orchestrator <span className="status-pending">PLANNED</span></div><div className="pipeline-row"><span className="pipeline-indicator muted"/>MP4 render <span className="status-pending">PLANNED</span></div><div className="storage-card"><Sparkles size={15}/><div><strong>Creative engine</strong><small>Four scenes · one timeline</small></div></div></div></aside>
+    <section className="workspace"><aside className="sidebar"><div className="side-heading">WORKSPACE <button className="tiny-icon"><Plus size={14}/></button></div><div className="workspace-label"><div className="folder-icon">▰</div><span>Untitled Studio</span><span className="chevron">⌄</span></div><div className="side-heading projects-heading">PROJECTS <span className="count">05</span></div><div className="project-list">{projects.map(p => <button key={p.id} onClick={() => setActive(p.id)} disabled={exporting} className={`project-item ${active === p.id ? 'selected' : ''}`}><span className="project-number">{p.number}</span><span className="project-copy"><strong>{p.title}</strong><small>{p.subtitle}</small></span><span className="project-state">{active === p.id ? '●' : '○'}</span></button>)}</div><div className="sidebar-bottom"><div className="side-heading">PIPELINE STATUS</div><div className="pipeline-row"><span className="pipeline-indicator"/>WebGL renderer <span className="status-ok">READY</span></div><div className="pipeline-row"><span className="pipeline-indicator"/>LM Studio <span className="status-ok">{lmModel ? 'READY' : 'CONNECT'}</span></div><div className="pipeline-row"><span className="pipeline-indicator"/>MP4 render <span className="status-ok">READY</span></div><div className="storage-card"><Sparkles size={15}/><div><strong>Creative engine</strong><small>Five scenes · one timeline</small></div></div></div></aside>
     <section className="editor"><div className="editor-heading"><div><div className="eyebrow">PROJECT / {project.number} <span>—</span> {project.tag}</div><h1>{project.title}</h1><p>{project.subtitle}</p></div><div className="editor-tools"><span className="resolution">1920 × 1080 <i/> 16:9</span><button className="icon-button" title="Fit canvas"><Maximize2 size={16}/></button><button className="frame-export-button" onClick={exportFrame} disabled={exporting}><Download size={14}/> PNG</button><button className="export-button" onClick={handleExportMp4} disabled={exporting || !ready}>{exporting ? <LoaderCircle size={15} className="spin"/> : <Film size={15}/>} {exporting ? 'Rendering ' + Math.round(exportProgress * 100) + '%' : 'Export MP4'}</button></div></div>
-      <div className="preview-stage"><div className="stage-meta"><span><span className="stage-dot"/> RENDER VIEWPORT</span><span>60 FPS TARGET <b>·</b> WEBGL 2.0</span></div><div className="canvas-wrap"><canvas ref={canvasRef} aria-label="Motion design preview"/><div className="canvas-overlay"><span>{project.number} / 04</span><span>AI MOTION STUDY</span></div>{!ready && <div className="loading">INITIALIZING RENDERER…</div>}</div><div className="stage-footer"><span>SCENE: {active.toUpperCase()}</span><span>TIME: {format(time)} / {format(project.duration)}</span><span>DETERMINISTIC SEEK</span></div></div>
+
+      <section className="ai-prompt-panel">
+        <div className="ai-panel-heading"><div><span className="ai-kicker"><Sparkles size={13}/> AI DIRECTOR</span><h2>Describe the scene you want</h2><p>LM Studio turns your brief into a structured, editable 3D composition.</p></div><span className="ai-status">{lmStatus}</span></div>
+        <textarea className="ai-prompt-input" value={prompt} maxLength={2000} onChange={event => setPrompt(event.target.value)} placeholder="Describe objects, motion, camera, lighting, style and final title…" disabled={generating}/>
+        <div className="ai-connection-row">
+          <label>LM STUDIO API<input value={lmBaseUrl} onChange={event => setLmBaseUrl(event.target.value)} placeholder="http://localhost:1234/v1" disabled={generating || connecting}/></label>
+          <label>MODEL ID<input value={lmModel} onChange={event => setLmModel(event.target.value)} placeholder="Auto-detect loaded model" disabled={generating}/></label>
+          <button className="ai-connect-button" onClick={handleConnectLmStudio} disabled={connecting || generating}>{connecting ? <LoaderCircle size={14} className="spin"/> : <Activity size={14}/>} {connecting ? 'Checking…' : 'Connect'}</button>
+          <button className="ai-generate-button" onClick={handleGenerateScene} disabled={generating || connecting || prompt.trim().length < 8}>{generating ? <LoaderCircle size={15} className="spin"/> : <Sparkles size={15}/>} {generating ? 'Generating scene…' : 'Generate scene'}</button>
+        </div>
+        <div className="ai-footnote">LM Studio: start the Local Server and enable CORS. For a local server on your PC, open the studio on that PC via localhost; an iPhone cannot reach the PC through its own localhost address.</div>
+        {aiNotice && <div className="ai-notice" role="status">{aiNotice}</div>}
+        {aiError && <div className="ai-error" role="alert">{aiError}</div>}
+      </section>
+      <div className="preview-stage"><div className="stage-meta"><span><span className="stage-dot"/> RENDER VIEWPORT</span><span>60 FPS TARGET <b>·</b> WEBGL 2.0</span></div><div className="canvas-wrap"><canvas ref={canvasRef} aria-label="Motion design preview"/><div className="canvas-overlay"><span>{project.number} / 05</span><span>AI MOTION STUDY</span></div>{!ready && <div className="loading">INITIALIZING RENDERER…</div>}</div><div className="stage-footer"><span>SCENE: {active.toUpperCase()}</span><span>TIME: {format(time)} / {format(project.duration)}</span><span>DETERMINISTIC SEEK</span></div></div>
       <div className="timeline-panel"><div className="timeline-top"><div className="timeline-label"><Film size={15}/> TIMELINE <span className="timeline-sub">/ MASTER COMPOSITION</span></div><div className="timeline-controls"><button className="icon-button" onClick={() => seek(0)} title="Restart">↺</button><button className="play-button" disabled={exporting} onClick={() => { if (time >= project.duration) seek(0); setPlaying(!playing); }} aria-label={playing ? 'Pause' : 'Play'}>{playing ? <Pause size={15} fill="currentColor"/> : <Play size={15} fill="currentColor"/>}</button><button className={`icon-button ${sound ? 'active' : ''}`} onClick={toggleSound} title="Sound"><Volume2 size={16}/></button><span className="timecode">{format(time)}</span></div></div><div className="ruler"><span>00:00</span><span>00:05</span><span>00:10</span><span>00:15</span><span>{format(project.duration)}</span></div><div className="track-area"><div className="track-name">SCENE 01 <small>MAIN LAYER</small></div><div className="track-lane"><div className="clip-block" style={{ width: '100%' }}><span>{project.title}</span><span className="clip-tag">SEEKABLE</span></div><input aria-label="Timeline position" type="range" min="0" max={project.duration} step="0.01" value={time} onChange={e => seek(Number(e.target.value))} className="scrubber" disabled={exporting}/><div className="playhead" style={{ left: `${(time / project.duration) * 100}%` }}/></div></div><div className="timeline-bottom"><span><AudioLines size={13}/> AUDIO BUS <small>PROCEDURAL SFX</small></span><span>{sound ? 'AUDIO UNLOCKED' : 'CLICK SOUND TO ENABLE'}</span></div></div>
       {active === 'type' && <section className="properties-panel">
         <div className="properties-heading"><span>TYPOGRAPHY</span><span>LIVE SCENE PARAMETERS</span></div>
@@ -102,7 +175,7 @@ export default function App() {
       </section>}
       {exporting && <div className="export-progress"><div className="export-progress-copy"><span>RENDERING MP4 · 1920 × 1080 · 30 FPS</span><span>{Math.round(exportProgress * 100)}% <button onClick={() => exportAbortRef.current?.abort()} aria-label="Cancel export"><X size={13}/></button></span></div><div className="export-progress-track"><div style={{ width: (exportProgress * 100) + "%" }}/></div></div>}
       {exportError && <div className="export-error" role="alert">{exportError}<button onClick={() => setExportError("")} aria-label="Dismiss error"><X size={13}/></button></div>}
-      <div className="bottom-status"><span><i className="status-green"/> All changes saved</span><span>ENGINE <b>THREE.JS</b></span><span>FRAME <b>{Math.round(time * 60).toString().padStart(4, '0')}</b></span><span>COLOR <b>ACES FILMIC</b></span><span className="bottom-spacer"/><span>AI DIRECTOR <b>NOT CONNECTED</b></span></div>
+      <div className="bottom-status"><span><i className="status-green"/> All changes saved</span><span>ENGINE <b>THREE.JS</b></span><span>FRAME <b>{Math.round(time * 60).toString().padStart(4, '0')}</b></span><span>COLOR <b>ACES FILMIC</b></span><span className="bottom-spacer"/><span>AI DIRECTOR <b>{lmModel ? 'MODEL READY' : 'LM STUDIO'}</b></span></div>
     </section></section>
   </main>;
 }
