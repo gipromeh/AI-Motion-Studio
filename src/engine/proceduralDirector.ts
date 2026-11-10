@@ -22,6 +22,7 @@ function inferDuration(prompt: string): number {
 
 function inferTitle(prompt: string): string {
   const explicitPatterns = [
+    /(?:brand title|title|заголовок|надпись|название(?: бренда)?)\s*[:"—-]?\s*[«“"]([^»”"]{2,40})[»”"]/i,
     /(?:title|заголовок|надпись|текст)\s*(?:reads|:|будет|—|-)\s*[«“"]?([^»”"\n]{2,40})[»”"]?/i,
     /(?:reads|надпись)\s*[«“"]([^»”"]{2,40})[»”"]/i,
     /(?:brand called|brand name|название бренда|бренд называется)\s*[:"«“]?\s*[«“"]?([^»”"’'\n.,]{2,40})/i
