@@ -37,7 +37,7 @@ export default function App() {
     setScaleKeys(current => upsertKeyframe(current, key));
     setSelectedKey(key.id);
   };
-  const updateSelectedKey = (patch: Partial<Keyframe>) => setScaleKeys(current => current.map(key => key.id === selectedKey ? { ...key, ...patch } : key));
+  const updateSelectedKey = (patch: Partial<Keyframe>) => setScaleKeys(current => { const selected = current.find(key => key.id === selectedKey); if (!selected) return current; const updated = { ...selected, ...patch }; return patch.time === undefined ? current.map(key => key.id === selectedKey ? updated : key) : upsertKeyframe(current.filter(key => key.id !== selectedKey), updated); });
   const toggleSound = async () => { if (!sound) await audioRef.current.unlock(); setSound(!sound); audioRef.current.playCue(740, 0.16, 'triangle'); };
   const exportFrame = () => { const canvas = canvasRef.current; if (!canvas) return; const link = document.createElement('a'); link.download = `ai-motion-${active}-${time.toFixed(2)}s.png`; link.href = canvas.toDataURL('image/png'); link.click(); };
   const format = (n: number) => `${Math.floor(n / 60).toString().padStart(2, '0')}:${(n % 60).toFixed(2).padStart(5, '0')}`;
